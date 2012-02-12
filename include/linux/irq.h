@@ -61,6 +61,7 @@ typedef	void fastcall (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_WAKEUP		0x00100000	/* IRQ triggers system wakeup */
 #define IRQ_MOVE_PENDING	0x00200000	/* need to re-target IRQ destination */
 #define IRQ_NO_BALANCING	0x00400000	/* IRQ is excluded from balancing */
+#define IRQ_RESERVED		0x80000000	/* IRQ reserved */
 
 #ifdef CONFIG_IRQ_PER_CPU
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
@@ -386,6 +387,9 @@ extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 #define get_irq_chip_data(irq)	(irq_desc[irq].chip_data)
 #define get_irq_data(irq)	(irq_desc[irq].handler_data)
 #define get_irq_msi(irq)	(irq_desc[irq].msi_desc)
+
+int alloc_irq_space (int nr);
+void free_irq_space (int start, int nr);
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
 

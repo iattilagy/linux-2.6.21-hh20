@@ -194,6 +194,48 @@ config KEYBOARD_HIL
 	  This driver implements support for HIL-keyboards attached
 	  to your machine, so normally you should say Y here.
 
+config GPIODEV_KEYS
+	tristate "Buttons on GPIOs"
+	help
+	  This is more generic version of gpio_keys driver, supporting 
+	  GPIOs across different chips.
+
+config GPIODEV_KEYS2
+	tristate "Buttons on GPIOs, version 2"
+	help
+	  GPIO keyboard driver supportting multiple GPIOs per button, 
+	  as well as button priorities.
+
+config GPIODEV_DIAGONAL
+	tristate "Diagonal joypad on GPIO"
+	help
+	  This driver enables support for joypads arranged in diagonal 
+	  fashion, which can be found in e.g HP iPAQ h5000 models and can't
+	  be used directly with gpiodev_keys.
+
+config KEYBOARD_ASIC2
+	tristate "Buttons on ASIC2 keypad I/O"
+	depends on HTC_ASIC2
+
+config KEYBOARD_ASIC3
+	tristate "Buttons on ASIC3 SoC GPIOs (iPaqs, etc.)"
+	depends on HTC_ASIC3
+	help
+	  This enables support for the buttons attached to GPIOs of 
+	  HTC ASIC3 peripheral controller.
+
+config KEYBOARD_H2200
+	tristate "iPAQ H2200 buttons and joypad driver"
+	depends on ARCH_H2200 && SOC_HAMCOP
+	help
+	  This enables support for the buttons and joypad on HP iPAQ H2200.
+
+config KEYBOARD_PXA27x
+	tristate "PXA27x matrix keyboard"
+	depends on PXA27x
+	help
+	  Enable support for PXA27x matrix keyboard controller
+
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
 	depends on (ARCH_OMAP1 || ARCH_OMAP2)
@@ -202,6 +244,19 @@ config KEYBOARD_OMAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap-keypad.
+
+config KEYBOARD_MICRO
+	tristate "Buttons on Micro SoC (iPaq h3100,h3600,h3700)"
+	depends on IPAQ_MICRO 
+	help
+	  This enables support for the buttons attached to  
+	  Micro peripheral controller on iPAQ h3100/h3600/h3700
+
+config KEYBOARD_TSC2200
+	tristate "Buttons on TSC2200 SoC"
+	depends on SOC_TSC2200
+	help
+	  This enables support for the buttons attached to TSC2200.
 
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"

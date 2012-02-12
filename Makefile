@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 21
-EXTRAVERSION =
+EXTRAVERSION = -hh20
 NAME = Nocturnal Monster Puppy
 
 # *DOCUMENTATION*
@@ -182,8 +182,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 
-ARCH		?= $(SUBARCH)
-CROSS_COMPILE	?=
+ARCH		:= arm
+CROSS_COMPILE	?= arm-linux-
 
 # Architecture as present in compile.h
 UTS_MACHINE := $(ARCH)
@@ -554,6 +554,7 @@ export mod_strip_cmd
 
 ifeq ($(KBUILD_EXTMOD),)
 core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/
+core-y		+= lab/
 
 vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \

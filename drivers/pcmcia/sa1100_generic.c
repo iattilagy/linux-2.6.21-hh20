@@ -63,6 +63,9 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #ifdef CONFIG_SA1100_COLLIE
        pcmcia_collie_init,
 #endif
+#ifdef CONFIG_SA1100_JORNADA56X
+	pcmcia_jornada56x_init,
+#endif
 };
 
 static int sa11x0_drv_pcmcia_probe(struct device *dev)

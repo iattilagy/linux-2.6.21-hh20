@@ -223,6 +223,20 @@ config PCMCIA_PXA2XX
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 
+config PCMCIA_H2200
+        tristate "iPAQ H2200 PCMCIA"
+        depends on ARCH_H2200 && PCMCIA_PXA2XX
+        help
+          Say Y here to include enables support for using PCMCIA
+	  (CompactFlash) cards on HP iPAQ H2200.
+
+config PCMCIA_GHI270
+	tristate "Grayhill GHI270 PCMCIA"
+	depends on MACH_GHI270 && PCMCIA_PXA2XX
+	help
+	  Say Y here to include support for PCMCIA (CompactFlash) cards on
+	  Grayhill GHI270 devices.
+
 config PCMCIA_PROBE
 	bool
 	default y if ISA && !ARCH_SA1100 && !ARCH_CLPS711X && !PARISC
@@ -277,5 +291,9 @@ config PCCARD_IODYN
 	bool
 
 endif	# PCCARD
+
+config IPAQ_PCMCIA_SLEEVE
+	tristate "PCMCIA/CF expansion pack on HP iPAQ"
+	depends on IPAQ_SLEEVE
 
 endmenu

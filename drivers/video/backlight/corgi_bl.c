@@ -18,7 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
-#include <asm/arch/sharpsl.h>
+#include <linux/corgi_bl.h>
 #include <asm/hardware/sharpsl_pm.h>
 
 static int corgibl_intensity;

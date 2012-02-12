@@ -29,7 +29,10 @@
 #include <asm/arch/hardware.h>	/* for CLPS7111_VIRT_BASE */
 #include <asm/sizes.h>
 #include <asm/arch/h1900-gpio.h>
-#include <asm/arch/ipaq.h>
+#include <asm/arch/pxa-regs.h>
+#include <asm/setup.h>
+#include <asm/memory.h>
+#include <asm/mach-types.h>
 
 /*
  * MTD structure for EDB7312 board
@@ -67,7 +70,7 @@ static void h1910_hwcontrol(struct mtd_info *mtd, int cmd,
 	struct nand_chip *chip = mtd->priv;
 
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, chip->IO_ADDR_W | ((ctrl & 0x6) << 1));
+		writeb(cmd, (void __iomem *)((unsigned long)chip->IO_ADDR_W | ((ctrl & 0x6) << 1)));
 }
 
 /*

@@ -368,6 +368,20 @@ config ARCH_OMAP
 
 endchoice
 
+config BOARD_IRQ_MAP_SMALL
+	bool
+	default n
+	help
+	  Reserve small number of interrupts table enrties for board-specific
+	  needs (currently 16).
+
+config BOARD_IRQ_MAP_BIG
+	bool
+	default n
+	help
+	  Reserve big number of interrupts table enrties for board-specific
+	  needs (currently 96).
+
 source "arch/arm/mach-clps711x/Kconfig"
 
 source "arch/arm/mach-ep93xx/Kconfig"
@@ -410,6 +424,8 @@ source "arch/arm/mach-s3c2443/Kconfig"
 endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
+
+source "lab/Kconfig"
 
 source "arch/arm/mach-imx/Kconfig"
 
@@ -798,9 +814,25 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.
 
+config TXTOFFSET_DELTA
+	bool "Move kernel text offset"
+	default n
+
+config TXTOFFSET_DELTA_VALUE
+	hex "Kernel text offset delta value"
+	depends on TXTOFFSET_DELTA
+	default "0x00000000"
+	help
+	  This delta value moves the default base of the kernel
+	  text segment from the architecture default. This can be
+	  useful for machines where the bootloader uses the area
+	  the kernel usually occupies for suspend/resume.
+
+	
+
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX )
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
 
 menu "CPU Frequency scaling"
 
@@ -808,13 +840,31 @@ source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_SA1100
 	bool
-	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_H3800 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
+	depends on CPU_FREQ && (SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
 	default y
 
 config CPU_FREQ_SA1110
 	bool
-	depends on CPU_FREQ && (SA1100_ASSABET || SA1100_CERF || SA1100_PT_SYSTEM3)
+	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_H3800 || SA1100_XDA || SA1100_ASSABET || SA1100_CERF || SA1100_PT_SYSTEM3)
 	default y
+
+config CPU_FREQ_PXA
+	tristate "CPUfreq driver for PXA2xx CPUs"
+	depends on CPU_FREQ && ARCH_PXA
+	default y
+	help
+	  Thes enables the CPUfreq driver for PXA2xx CPUs.
+
+	  If in doubt, say Y.
+
+config PXA25x_ALTERNATE_FREQS
+	bool
+	depends on CPU_FREQ_PXA
+	default y
+	help
+	  This makes cpufreq use an alternative set of frequencies which
+	  do not change MCLK, which is useful for drivers that key off MCLK
+	  but which are not cpufreq-aware.
 
 config CPU_FREQ_INTEGRATOR
 	tristate "CPUfreq driver for ARM Integrator CPUs"
@@ -975,7 +1025,9 @@ source "drivers/w1/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 
-#source "drivers/l3/Kconfig"
+source "drivers/power/Kconfig"
+
+source "drivers/l3/Kconfig"
 
 source "drivers/misc/Kconfig"
 

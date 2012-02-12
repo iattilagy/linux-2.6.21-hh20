@@ -145,6 +145,11 @@ config INPUT_EVBUG
 	  To compile this driver as a module, choose M here: the
 	  module will be called evbug.
 
+config INPUT_LED_TRIGGER
+	tristate "Input LED trigger"
+	help
+	  Say Y here if you want input events to trigger LED events.
+
 comment "Input Device Drivers"
 
 source "drivers/input/keyboard/Kconfig"

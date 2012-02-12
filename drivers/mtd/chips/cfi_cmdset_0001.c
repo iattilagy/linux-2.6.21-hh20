@@ -838,6 +838,12 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 	switch(chip->oldstate) {
 	case FL_ERASING:
 		chip->state = chip->oldstate;
+
+                /* I have seen cases where VPP is off when resume occurs. This
+                 * causes the erase to fail when resumed.  Make sure it is
+                 * enabled.  --Aric. */
+                ENABLE_VPP(map);
+
 		/* What if one interleaved chip has finished and the
 		   other hasn't? The old code would leave the finished
 		   one in READY mode. That's bad, and caused -EROFS
@@ -1006,6 +1012,11 @@ static int __xipram xip_wait_for_operation(
 			}
 			/* Disallow XIP again */
 			local_irq_disable();
+
+                        /* I have seen cases where VPP is off when resume occurs. This
+                        * causes the erase to fail when resumed.  Make sure it is
+                        * enabled.  --Aric. */
+                        ENABLE_VPP(map);
 
 			/* Resume the write or erase operation */
 			map_write(map, CMD(0xd0), adr);
@@ -1686,7 +1697,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	map_word status;
-	int retries = 3;
+	int retries = 30;
 	int ret;
 
 	adr += chip->start;

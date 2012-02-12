@@ -1197,7 +1197,11 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 #elif defined(__hppa__)
 	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
 #elif defined(__arm__) || defined(__sh__) || defined(__m32r__)
+#if defined(CONFIG_ARCH_H5400) 
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#else
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+#endif
 #elif defined(__ia64__)
 	if (efi_range_is_wc(vma->vm_start, vma->vm_end - vma->vm_start))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);

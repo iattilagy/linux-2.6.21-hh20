@@ -72,10 +72,69 @@ static struct map_desc simpad_io_desc[] __initdata = {
 	},
 };
 
+static void simpad_uart_set_mctrl(struct uart_port *port, u_int mctrl)
+{
+	if (port->mapbase == _Ser1UTCR0) {
+                /* internal serial port (ttySA1, DECT/Bluetooth) */
+		if (mctrl & TIOCM_RTS)
+			GPCR = GPIO_UART1_RTS;
+		else
+			GPSR = GPIO_UART1_RTS;
+
+		if (mctrl & TIOCM_DTR)
+			GPCR = GPIO_UART1_DTR;
+		else
+			GPSR = GPIO_UART1_DTR;
+	}else if (port->mapbase == _Ser3UTCR0) {
+                /* external serial port (ttySA0, RS232) */
+		if (mctrl & TIOCM_RTS)
+			GPCR = GPIO_UART3_RTS;
+		else
+			GPSR = GPIO_UART3_RTS;
+
+		if (mctrl & TIOCM_DTR)
+			GPCR = GPIO_UART3_DTR;
+		else
+			GPSR = GPIO_UART3_DTR;
+	}
+}
+
+static u_int simpad_uart_get_mctrl(struct uart_port *port)
+{
+	u_int ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
+
+	if (port->mapbase == _Ser1UTCR0) {
+                /* internal serial port (ttySA1, DECT/Bluetooth) */
+		int gplr = GPLR;
+		if (gplr & GPIO_UART1_DCD)
+			ret &= ~TIOCM_CD;
+
+		if (gplr & GPIO_UART1_CTS)
+			ret &= ~TIOCM_CTS;
+
+		if (gplr & GPIO_UART1_DSR)
+			ret &= ~TIOCM_DSR;
+	}
+
+	else if (port->mapbase == _Ser3UTCR0) {
+                /* external serial port (ttySA0, RS232) */
+		int gplr = GPLR;
+		if (gplr & GPIO_UART3_DCD)
+			ret &= ~TIOCM_CD;
+
+		if (gplr & GPIO_UART3_CTS)
+			ret &= ~TIOCM_CTS;
+
+		if (gplr & GPIO_UART3_DSR)
+			ret &= ~TIOCM_DSR;
+	}
+
+	return ret;
+}
 
 static void simpad_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
-	if (port->mapbase == (u_int)&Ser1UTCR0) {
+	if (port->mapbase == (u_int)&Ser3UTCR0) {
 		if (state)
 		{
 			clear_cs3_bit(RS232_ON);
@@ -89,6 +148,8 @@ static void simpad_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 }
 
 static struct sa1100_port_fns simpad_port_fns __initdata = {
+	.set_mctrl = simpad_uart_set_mctrl,
+	.get_mctrl = simpad_uart_get_mctrl,
 	.pm	   = simpad_uart_pm,
 };
 
@@ -146,13 +207,30 @@ static void __init simpad_map_io(void)
 		      ENABLE_5V | RESET_SIMCARD | DECT_POWER_ON);
 
 
-        sa1100_register_uart_fns(&simpad_port_fns);
+	sa1100_register_uart_fns(&simpad_port_fns);
 	sa1100_register_uart(0, 3);  /* serial interface */
 	sa1100_register_uart(1, 1);  /* DECT             */
 
 	// Reassign UART 1 pins
+	// txd and rxd use their alternate function
 	GAFR |= GPIO_UART_TXD | GPIO_UART_RXD;
+
+        // the control lines are gpio
+	GAFR &= ~(GPIO_UART1_RTS | GPIO_UART1_CTS | GPIO_UART1_DCD);
+	GAFR &= ~(GPIO_UART1_DSR | GPIO_UART1_DTR);
+	GAFR &= ~(GPIO_UART3_RTS | GPIO_UART3_CTS | GPIO_UART3_DCD);
+	GAFR &= ~(GPIO_UART3_DSR | GPIO_UART3_DTR);
+
+        // txd, rts and dtr are outputs
 	GPDR |= GPIO_UART_TXD | GPIO_LDD13 | GPIO_LDD15;
+	GPDR |= GPIO_UART1_RTS | GPIO_UART3_RTS;
+	GPDR |= GPIO_UART1_DTR | GPIO_UART3_DTR;
+
+
+        // cts, dcd, dsr and rxd are inputs
+	GPDR &= ~(GPIO_UART1_CTS | GPIO_UART3_CTS);
+	GPDR &= ~(GPIO_UART1_DCD | GPIO_UART3_DCD);
+	GPDR &= ~(GPIO_UART1_DSR | GPIO_UART3_DSR);
 	GPDR &= ~GPIO_UART_RXD;
 	PPAR |= PPAR_UPR;
 

@@ -2075,7 +2075,8 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 	printk(KERN_INFO "%s%s%s%d at %s (irq = %d) is a %s\n",
 	       port->dev ? port->dev->bus_id : "",
 	       port->dev ? ": " : "",
-	       drv->dev_name, port->line, address, port->irq, uart_type(port));
+	       drv->dev_name, port->line + drv->name_base, address,
+	       port->irq, uart_type(port));
 }
 
 static void
@@ -2191,6 +2192,7 @@ int uart_register_driver(struct uart_driver *drv)
 	normal->owner		= drv->owner;
 	normal->driver_name	= drv->driver_name;
 	normal->name		= drv->dev_name;
+	normal->name_base	= drv->name_base;
 	normal->major		= drv->major;
 	normal->minor_start	= drv->minor;
 	normal->type		= TTY_DRIVER_TYPE_SERIAL;

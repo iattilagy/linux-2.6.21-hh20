@@ -34,7 +34,7 @@ config LCD_CLASS_DEVICE
 
 config BACKLIGHT_CORGI
 	tristate "Sharp Corgi Backlight Driver (SL Series)"
-	depends on BACKLIGHT_CLASS_DEVICE && PXA_SHARPSL
+	depends on BACKLIGHT_CLASS_DEVICE
 	default y
 	help
 	  If you have a Sharp Zaurus SL-C7xx, SL-Cxx00 or SL-6000x say y to enable the
@@ -63,3 +63,31 @@ config BACKLIGHT_PROGEAR
 	help
 	  If you have a Frontpath ProGear say Y to enable the
 	  backlight driver.
+
+config BACKLIGHT_HX2750
+	tristate "iPAQ HX2750 Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && MACH_HX2750
+	default y
+	help
+	  If you have an iPAQ hx2750, say y to enable the backlight driver.
+
+config BACKLIGHT_H2200
+        tristate "iPAQ H2200 MediaQ 1178 Backlight Driver"
+        depends on BACKLIGHT_CLASS_DEVICE && ARCH_H2200
+        help
+
+          If you have an iPAQ h2200, say Y to enable the backlight driver.
+
+config BACKLIGHT_S3C2410
+	tristate "Samsung S3C2410 Backlight Driver"
+	depends on (BACKLIGHT_CLASS_DEVICE || LCD_CLASS_DEVICE) && ARCH_S3C2410
+	default y
+	help
+	  If you have a backlight controller connected on a Samsung S3C2410,
+	  say y here to enable the driver.
+
+config LCD_H2200
+        tristate "iPAQ H2200 MediaQ 1178 LCD Driver"
+        depends on LCD_CLASS_DEVICE && ARCH_H2200
+        help
+          If you have an iPAQ h2200, say Y to enable the LCD driver.

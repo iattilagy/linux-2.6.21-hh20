@@ -29,13 +29,45 @@ struct timer_trig_data {
 	unsigned long delay_off;	/* milliseconds off */
 	struct timer_list timer;
 };
+struct led_trigger_timer {
+	struct led_trigger trigger;
+	int state;
+};
+
+void led_timer_trigger_event(struct led_trigger *trigger,
+			enum led_brightness brightness)
+{
+	struct list_head *entry;
+	struct led_classdev *led_cdev;
+	struct timer_trig_data *timer_data;
+	struct led_trigger_timer *timer_trig;
+	if (!trigger)
+		return;
+	
+	timer_trig = container_of(trigger, struct led_trigger_timer, trigger);
+	timer_trig->state = brightness == LED_OFF ? 0 : 1;
+
+	read_lock(&trigger->leddev_list_lock);
+	list_for_each(entry, &trigger->led_cdevs) {
+		led_cdev = list_entry(entry, struct led_classdev, trig_list);
+		timer_data = led_cdev->trigger_data;
+		if (brightness == LED_FULL)
+			mod_timer(&timer_data->timer, jiffies +  HZ);
+	}
+	read_unlock(&trigger->leddev_list_lock);
+}
 
 static void led_timer_function(unsigned long data)
 {
 	struct led_classdev *led_cdev = (struct led_classdev *) data;
 	struct timer_trig_data *timer_data = led_cdev->trigger_data;
+	struct led_trigger *trigger;
+	struct led_trigger_timer *timer_trig;
 	unsigned long brightness = LED_OFF;
 	unsigned long delay = timer_data->delay_off;
+
+	trigger = led_cdev->trigger;
+	timer_trig = container_of(trigger, struct led_trigger_timer, trigger);
 
 	if (!timer_data->delay_on || !timer_data->delay_off) {
 		led_set_brightness(led_cdev, LED_OFF);
@@ -47,9 +79,13 @@ static void led_timer_function(unsigned long data)
 		delay = timer_data->delay_on;
 	}
 
+	if (!timer_trig->state)
+		brightness = LED_OFF;
+
 	led_set_brightness(led_cdev, brightness);
 
-	mod_timer(&timer_data->timer, jiffies + msecs_to_jiffies(delay));
+	if (timer_trig->state)
+		mod_timer(&timer_data->timer, jiffies + msecs_to_jiffies(delay));
 }
 
 static ssize_t led_delay_on_show(struct class_device *dev, char *buf)
@@ -132,6 +168,8 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 
 	led_cdev->trigger_data = timer_data;
 
+	timer_data->delay_on = 1000;
+	timer_data->delay_off = 1000;
 	init_timer(&timer_data->timer);
 	timer_data->timer.function = led_timer_function;
 	timer_data->timer.data = (unsigned long) led_cdev;
@@ -143,6 +181,7 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 				&class_device_attr_delay_off);
 	if (rc) goto err_out_delayon;
 
+	mod_timer(&timer_data->timer, jiffies + 15);
 	return;
 
 err_out_delayon:
@@ -167,20 +206,55 @@ static void timer_trig_deactivate(struct led_classdev *led_cdev)
 	}
 }
 
-static struct led_trigger timer_led_trigger = {
-	.name     = "timer",
-	.activate = timer_trig_activate,
-	.deactivate = timer_trig_deactivate,
+
+void led_trigger_register_timer(const char *name,
+                                  struct led_trigger **trig)
+{
+	struct led_trigger_timer *tmptrig_timer;
+	
+	tmptrig_timer = kzalloc(sizeof(struct led_trigger_timer), GFP_KERNEL);
+	
+	if (tmptrig_timer) {
+		tmptrig_timer->state = 0;
+		tmptrig_timer->trigger.name = name;
+		tmptrig_timer->trigger.activate = timer_trig_activate;
+		tmptrig_timer->trigger.deactivate = timer_trig_deactivate;
+		tmptrig_timer->trigger.send_event = led_timer_trigger_event;
+
+		led_trigger_register(&tmptrig_timer->trigger);
+	}
+	*trig = &tmptrig_timer->trigger;
+
+	return;
+}
+
+void led_trigger_unregister_timer(struct led_trigger *trig)
+{
+	led_trigger_unregister(trig);
+	kfree(trig);
+	return;
+}
+
+EXPORT_SYMBOL_GPL(led_trigger_register_timer);
+EXPORT_SYMBOL_GPL(led_trigger_unregister_timer);
+
+static struct led_trigger_timer timer_trig = {
+	.state = 1,
+	.trigger = {
+		.name     = "timer",
+		.activate = timer_trig_activate,
+		.deactivate = timer_trig_deactivate,
+	}
 };
 
 static int __init timer_trig_init(void)
 {
-	return led_trigger_register(&timer_led_trigger);
+	return led_trigger_register(&timer_trig.trigger);
 }
 
 static void __exit timer_trig_exit(void)
 {
-	led_trigger_unregister(&timer_led_trigger);
+	led_trigger_unregister(&timer_trig.trigger);
 }
 
 module_init(timer_trig_init);

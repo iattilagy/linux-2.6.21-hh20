@@ -519,6 +519,31 @@ config SOUND_MPU401
 	  If you compile the driver into the kernel, you have to add
 	  "mpu401=<io>,<irq>" to the kernel command line.
 
+config SOUND_WM97XX
+        tristate "WM97XX touchscreen/battery monitor support"
+        depends on SOUND_PRIME!=n
+        help
+          This driver adds support for touchscreens and battery charge
+          monitors connected to the WM9705 and WM9712 codecs. If architecture
+          permits, use the continuous mode subdriver as it allows less CPU
+ 	  overhead and higher sample rates. 
+
+	  If it doesn't works, try to build it as a module, and load  it just 
+	  before starting the graphical interface.
+
+config SOUND_WM97XX_PXA
+        tristate "Intel PXA AC97 WM97XX continuous mode touchscreen driver"
+        depends on SOUND_WM97XX && ARCH_PXA
+        help
+	  Use this driver to enable continuous mode touchsreen sampling
+          on Intel XScale CPUs. This is the best mode as it's using DMA
+          for continuous sampling of touchscreen data (750 samples per
+          second) then average 4 samples into one for smooth input.
+          This gives about 187 samples per second, which is about twice
+          better than without this drive. 
+	  If it doesn't works, try to build it as a module, and load just
+	  before starting the graphical interface.
+
 config SOUND_PAS
 	tristate "ProAudioSpectrum 16 support"
 	depends on SOUND_OSS

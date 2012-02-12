@@ -445,10 +445,28 @@ usb_ep_fifo_flush (struct usb_ep *ep)
 
 struct usb_gadget;
 
+/**
+ * struct usb_endpoint_config - possible configurations of a given endpoint
+ * @config: the configuration number
+ * @interface: the interface number
+ * @altinterface: the altinterface number
+ *
+ * Used as an array to pass information about the possible configurations
+ * of a given endpoint to the bus controller.
+ */
+struct usb_endpoint_config {
+	u8	config;
+	u8	interface;
+	u8	altinterface;
+};
+
 /* the rest of the api to the controller hardware: device operations,
  * which don't involve endpoints (or i/o).
  */
 struct usb_gadget_ops {
+	struct usb_ep* (*ep_alloc)(struct usb_gadget *,
+				struct usb_endpoint_descriptor *,
+				struct usb_endpoint_config *, int);
 	int	(*get_frame)(struct usb_gadget *);
 	int	(*wakeup)(struct usb_gadget *);
 	int	(*set_selfpowered) (struct usb_gadget *, int is_selfpowered);
@@ -872,7 +890,10 @@ int usb_gadget_config_buf(const struct usb_config_descriptor *config,
 /* utility wrapping a simple endpoint selection policy */
 
 extern struct usb_ep *usb_ep_autoconfig (struct usb_gadget *,
-			struct usb_endpoint_descriptor *) __devinit;
+			struct usb_endpoint_descriptor *,
+			struct usb_endpoint_config *,
+			int numconfigs
+) __devinit;
 
 extern void usb_ep_autoconfig_reset (struct usb_gadget *) __devinit;
 

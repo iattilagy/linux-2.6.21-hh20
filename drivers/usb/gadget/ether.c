@@ -259,7 +259,8 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #endif
 
 #ifdef CONFIG_USB_GADGET_PXA27X
-#define DEV_CONFIG_CDC
+//#define DEV_CONFIG_CDC
+#define	DEV_CONFIG_SUBSET
 #endif
 
 #ifdef CONFIG_USB_GADGET_S3C2410
@@ -1340,6 +1341,10 @@ static void rndis_response_complete (struct usb_ep *ep, struct usb_request *req)
 	/* done sending after USB_CDC_GET_ENCAPSULATED_RESPONSE */
 }
 
+#ifdef CONFIG_USB_GADGET_PXA27X
+int write_ep0_zlp(void);
+#endif
+
 static void rndis_command_complete (struct usb_ep *ep, struct usb_request *req)
 {
 	struct eth_dev          *dev = ep->driver_data;
@@ -1350,6 +1355,10 @@ static void rndis_command_complete (struct usb_ep *ep, struct usb_request *req)
 	status = rndis_msg_parser (dev->rndis_config, (u8 *) req->buf);
 	if (status < 0)
 		ERROR(dev, "%s: rndis parse error %d\n", __FUNCTION__, status);
+
+#ifdef CONFIG_USB_GADGET_PXA27X
+	write_ep0_zlp();
+#endif
 	spin_unlock(&dev->lock);
 }
 
@@ -2276,7 +2285,8 @@ eth_bind (struct usb_gadget *gadget)
 	struct eth_dev		*dev;
 	struct net_device	*net;
 	u8			cdc = 1, zlp = 1, rndis = 1;
-	struct usb_ep		*in_ep, *out_ep, *status_ep = NULL;
+	struct usb_ep		*in_ep = NULL , *out_ep = NULL, *status_ep = NULL;
+	struct usb_endpoint_config ep_config[2];
 	int			status = -ENOMEM;
 	int			gcnum;
 
@@ -2375,7 +2385,30 @@ eth_bind (struct usb_gadget *gadget)
 
 	/* all we really need is bulk IN/OUT */
 	usb_ep_autoconfig_reset (gadget);
-	in_ep = usb_ep_autoconfig (gadget, &fs_source_desc);
+
+	ep_config[0].config = DEV_CONFIG_VALUE;
+#if 	defined(DEV_CONFIG_CDC)
+	ep_config[0].interface = data_intf.bInterfaceNumber;
+	ep_config[0].altinterface = data_intf.bAlternateSetting;
+#else 	/* DEV_CONFIG_SUBSET */
+	ep_config[0].interface = subset_data_intf.bInterfaceNumber;
+	ep_config[0].altinterface = subset_data_intf.bAlternateSetting;
+#endif
+
+#ifdef	CONFIG_USB_ETH_RNDIS
+	ep_config[1].config = DEV_RNDIS_CONFIG_VALUE;
+#ifdef CONFIG_USB_GADGET_PXA27X
+	ep_config[1].interface = 0;
+#else
+	ep_config[1].interface = rndis_data_intf.bInterfaceNumber;
+#endif
+	ep_config[1].altinterface = rndis_data_intf.bAlternateSetting;
+
+	in_ep = usb_ep_autoconfig(gadget, &fs_source_desc, &ep_config[0], 2);
+#else
+	in_ep = usb_ep_autoconfig(gadget, &fs_source_desc, &ep_config[0], 1);
+#endif
+
 	if (!in_ep) {
 autoconf_fail:
 		dev_err (&gadget->dev,
@@ -2385,7 +2418,12 @@ autoconf_fail:
 	}
 	in_ep->driver_data = in_ep;	/* claim */
 
-	out_ep = usb_ep_autoconfig (gadget, &fs_sink_desc);
+#ifdef CONFIG_USB_ETH_RNDIS
+	out_ep = usb_ep_autoconfig(gadget, &fs_sink_desc, &ep_config[0], 2);
+#else
+	out_ep = usb_ep_autoconfig(gadget, &fs_sink_desc, &ep_config[0], 1);
+#endif
+
 	if (!out_ep)
 		goto autoconf_fail;
 	out_ep->driver_data = out_ep;	/* claim */
@@ -2395,7 +2433,25 @@ autoconf_fail:
 	 * Since some hosts expect one, try to allocate one anyway.
 	 */
 	if (cdc || rndis) {
-		status_ep = usb_ep_autoconfig (gadget, &fs_status_desc);
+#ifdef DEV_CONFIG_CDC
+		ep_config[0].config = DEV_CONFIG_VALUE;
+		ep_config[0].interface = control_intf.bInterfaceNumber;
+		ep_config[0].altinterface = control_intf.bAlternateSetting;
+#endif
+#ifdef CONFIG_USB_ETH_RNDIS
+		ep_config[1].config = DEV_RNDIS_CONFIG_VALUE;
+		ep_config[1].interface = rndis_control_intf.bInterfaceNumber;
+		ep_config[1].altinterface = rndis_control_intf.bAlternateSetting;
+#endif
+
+#if defined(DEV_CONFIG_CDC) && defined(CONFIG_USB_ETH_RNDIS)
+		status_ep = usb_ep_autoconfig(gadget, &fs_status_desc, &ep_config[0], 2);
+#elif defined(CONFIG_USB_ETH_RNDIS)
+		status_ep = usb_ep_autoconfig(gadget, &fs_status_desc, &ep_config[1], 1);
+#else
+		status_ep = usb_ep_autoconfig(gadget, &fs_status_desc, &ep_config[0], 1);
+#endif
+
 		if (status_ep) {
 			status_ep->driver_data = status_ep;	/* claim */
 		} else if (rndis) {

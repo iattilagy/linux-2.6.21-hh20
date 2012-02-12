@@ -404,6 +404,17 @@ int s3c24xx_register_clock(struct clk *clk)
 	return 0;
 }
 
+int s3c24xx_unregister_clock(struct clk *clk)
+{
+	/* del from the list of available clocks */
+
+	mutex_lock(&clocks_mutex);
+	list_del(&clk->list);
+	mutex_unlock(&clocks_mutex);
+
+	return 0;
+}
+
 /* initalise all the clocks */
 
 int __init s3c24xx_setup_clocks(unsigned long xtal,

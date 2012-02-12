@@ -17,6 +17,13 @@
 
 
 /*
+ * We requires absolute addresses i.e. (PCMCIA_IO_0_BASE + 0x3f8) for 
+ * in*()/out*() macros to be usable for all cases.
+ */
+#define PCIO_BASE		0
+
+
+/*
  * SA1100 internal I/O mappings
  *
  * We have the following mapping:
@@ -37,9 +44,13 @@
    ( (((x)&0x00ffffff) | (((x)&(0x30000000>>VIO_SHIFT))<<VIO_SHIFT)) + PIO_START )
 
 #ifndef __ASSEMBLY__
+#include <asm/types.h>
 
 # define __REG(x)	(*((volatile unsigned long *)io_p2v(x)))
 # define __PREG(x)	(io_v2p((unsigned long)&(x)))
+
+extern int sa1100_gpio_direction_input(unsigned gpio);
+extern int sa1100_gpio_direction_output(unsigned gpio);
 
 #else
 

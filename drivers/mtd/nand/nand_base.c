@@ -2225,6 +2225,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 {
 	struct nand_flash_dev *type = NULL;
 	int i, dev_id, maf_idx;
+	int interleave;
+
+	/* Check in interleave used */
+	interleave = (chip->options & NAND_INTERLEAVE) ? 1 : 0;
 
 	/* Select the device */
 	chip->select_chip(mtd, 0);
@@ -2275,10 +2279,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		/*
 		 * Old devices have chip data hardcoded in the device id table
 		 */
-		mtd->erasesize = type->erasesize;
-		mtd->writesize = type->pagesize;
+		mtd->erasesize = type->erasesize << interleave;
+		mtd->writesize = type->pagesize << interleave;
 		mtd->oobsize = mtd->writesize / 32;
-		busw = type->options & NAND_BUSWIDTH_16;
+		busw = interleave ? NAND_BUSWIDTH_16 : type->options & NAND_BUSWIDTH_16;
 	}
 
 	/* Try to identify manufacturer */

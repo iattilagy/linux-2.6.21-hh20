@@ -534,6 +534,8 @@ struct input_absinfo {
 #define KEY_FN_S		0x1e3
 #define KEY_FN_B		0x1e4
 
+#define KEY_CONTACTS		0x1fe
+
 #define KEY_BRL_DOT1		0x1f1
 #define KEY_BRL_DOT2		0x1f2
 #define KEY_BRL_DOT3		0x1f3
@@ -602,6 +604,7 @@ struct input_absinfo {
 #define SW_LID			0x00  /* set = lid shut */
 #define SW_TABLET_MODE		0x01  /* set = tablet mode */
 #define SW_HEADPHONE_INSERT	0x02  /* set = inserted */
+#define SW_NIGHT_SENSOR		0x03  /* */
 #define SW_MAX			0x0f
 
 /*

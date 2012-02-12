@@ -15,6 +15,7 @@ obj-$(CONFIG_INPUT_EVDEV)	+= evdev.o
 obj-$(CONFIG_INPUT_TSDEV)	+= tsdev.o
 obj-$(CONFIG_INPUT_POWER)	+= power.o
 obj-$(CONFIG_INPUT_EVBUG)	+= evbug.o
+obj-$(CONFIG_INPUT_LED_TRIGGER)	+= ghi270.o
 
 obj-$(CONFIG_INPUT_KEYBOARD)	+= keyboard/
 obj-$(CONFIG_INPUT_MOUSE)	+= mouse/

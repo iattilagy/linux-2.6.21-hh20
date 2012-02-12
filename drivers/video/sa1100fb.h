@@ -47,6 +47,9 @@ struct sa1100fb_mach_info {
 
 	u_int		lccr0;
 	u_int		lccr3;
+
+	struct sa1100fb_rgb *rgb_8;
+	struct sa1100fb_rgb *rgb_16;
 };
 
 /* Shadows for LCD controller registers */

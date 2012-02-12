@@ -60,6 +60,16 @@ config SENSORS_PCA9539
 	  This driver can also be built as a module.  If so, the module
 	  will be called pca9539.
 
+config SENSORS_PCA9535
+	tristate "Philips PCA9535 16-bit I/O port"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Philips PCA9535
+	  16-bit I/O port.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pca9535.
+
 config SENSORS_PCF8591
 	tristate "Philips PCF8591"
 	depends on I2C && EXPERIMENTAL
@@ -72,6 +82,15 @@ config SENSORS_PCF8591
 
 	  These devices are hard to detect and rarely found on mainstream
 	  hardware.  If unsure, say N.
+
+config SENSORS_RTC8564
+	tristate "Epson 8564 RTC chip"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Epson 8564 RTC chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-rtc8564.
 
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"

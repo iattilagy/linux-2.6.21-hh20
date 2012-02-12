@@ -214,7 +214,7 @@
 #define __NR_sigaltstack		(__NR_SYSCALL_BASE+186)
 #define __NR_sendfile			(__NR_SYSCALL_BASE+187)
 					/* 188 reserved */
-					/* 189 reserved */
+#define __NR_sys_kexec_load		(__NR_SYSCALL_BASE+189)	/* 189 was reserved, temporarily use it for sys_kexec_load */
 #define __NR_vfork			(__NR_SYSCALL_BASE+190)
 #define __NR_ugetrlimit			(__NR_SYSCALL_BASE+191)	/* SuS compliant getrlimit */
 #define __NR_mmap2			(__NR_SYSCALL_BASE+192)
@@ -383,6 +383,7 @@
 #define __ARM_NR_usr26			(__ARM_NR_BASE+3)
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
+#define __ARM_NR_lbl			(__ARM_NR_BASE+9)
 
 /*
  * The following syscalls are obsolete and no longer available for EABI.

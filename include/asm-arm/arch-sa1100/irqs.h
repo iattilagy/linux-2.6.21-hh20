@@ -59,6 +59,13 @@
 #define	IRQ_GPIO26		47
 #define	IRQ_GPIO27		48
 
+
+/*
+ * get IRQ from GPIO 
+ */
+
+#define IRQ_GPIO(x)	(((x) < 11) ? (IRQ_GPIO0 + (x)) : (IRQ_GPIO11 - 11 + (x)))
+
 /*
  * The next 16 interrupts are for board specific purposes.  Since
  * the kernel can only run on one machine at a time, we can re-use
@@ -157,6 +164,8 @@
 #define NR_IRQS			(IRQ_BOARD_END)
 #elif defined(CONFIG_SHARP_LOCOMO)
 #define NR_IRQS			(IRQ_LOCOMO_SPI_TEND + 1)
+#elif defined(CONFIG_SA1100_JORNADA56X)
+#define NR_IRQS			(IRQ_BOARD_END + 64)
 #else
 #define NR_IRQS			(IRQ_BOARD_START)
 #endif

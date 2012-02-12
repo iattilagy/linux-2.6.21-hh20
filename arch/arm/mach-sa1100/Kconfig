@@ -93,12 +93,44 @@ config SA1100_BADGE4
 	  Say Y here if you want to build a kernel for the HP Laboratories
 	  BadgePAD 4.
 
+config SA1100_JORNADA56X
+	bool "HP Jornada 56x"
+	select INPUT_TOUCHSCREEN
+	select INPUT_TSDEV
+	help
+	  Say Y here if you want to build a kernel for the HP Jornada 56x
+	  handheld computer.
+
 config SA1100_JORNADA720
 	bool "HP Jornada 720"
 	select SA1111
 	help
 	  Say Y here if you want to build a kernel for the HP Jornada 720
 	  handheld computer.  See <http://www.hp.com/jornada/products/720>
+	  for details.
+	  
+config SA1100_JORNADA720_FLASH
+	bool "HP Jornada 720 flashboard support"
+	depends on SA1100_JORNADA720
+	help
+	  Say Y here if your Jornada 720 has a flash board
+
+config SA1100_JORNADA820
+	bool "HP Jornada 820"
+	help
+	  The HP Jornada 820 computer is a no-compromise PDA from late 1998,
+	  with full-size keyboard and full-size VGA LCD.
+	  Visit our project site <http://jornada820.sourceforge.net>.
+	  
+	  Say Y here if you want to build a kernel specifically
+	  for the HP Jornada 820. Otherwise say N.
+
+config SA1100_XDA
+	bool "HTC Wallaby"
+	help
+	  Say Y here if you want to build a kernel for the HTC Wallaby	
+	  handheld computer, branded under several names (XDA but also T-Mobile
+	  MDA, Qtek 1010, Siemens SX56).  See <http://wiki.xda-developers.com>
 	  for details.
 
 config SA1100_HACKKIT
@@ -156,6 +188,20 @@ config H3600_SLEEVE
 	  for the Compaq iPAQ H3XXX series of handheld computers.  This option
 	  is required for the CF, PCMCIA, Bluetooth and GSM/GPRS extension
 	  packs.
+
+config SA1100_USB
+	tristate "SA1100 USB function support"
+ 
+config SA1100_USB_NETLINK
+	tristate "Support for SA11x0 USB network link function"
+	depends on SA1100_USB
+config SA1100_USB_CHAR
+	tristate "Support for SA11x0 USB character device emulation"
+	depends on SA1100_USB
+
+config IPAQ_H3600_LCD
+	tristate "HP iPAQ h3600 LCD"
+	depends on SA1100_H3600 && LCD_CLASS_DEVICE && FB_SA1100
 
 endmenu
 

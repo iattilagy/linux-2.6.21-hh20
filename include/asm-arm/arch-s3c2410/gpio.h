@@ -27,6 +27,7 @@
 #include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/arch/regs-gpio.h>
+#include <linux/gpiodev2.h> /* GPIO_BASE_INCREMENT */
 
 static inline int gpio_request(unsigned gpio, const char *label)
 {
@@ -40,13 +41,16 @@ static inline void gpio_free(unsigned gpio)
 
 static inline int gpio_direction_input(unsigned gpio)
 {
+	if (gpio >= GPIO_BASE_INCREMENT)
+		return -EINVAL;
 	s3c2410_gpio_cfgpin(gpio, S3C2410_GPIO_INPUT);
 	return 0;
 }
 
 static inline int gpio_direction_output(unsigned gpio, int value)
 {
-	s3c2410_gpio_cfgpin(gpio, S3C2410_GPIO_OUTPUT);
+	if (gpio < GPIO_BASE_INCREMENT)
+		s3c2410_gpio_cfgpin(gpio, S3C2410_GPIO_OUTPUT);
 	/* REVISIT can we write the value first, to avoid glitching? */
 	s3c2410_gpio_setpin(gpio, value);
 	return 0;

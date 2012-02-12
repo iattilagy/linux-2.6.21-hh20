@@ -54,6 +54,12 @@
 
 #include "8250.h"
 
+#ifdef CONFIG_SERIAL_PXA
+#define SERIAL_HW_SKIP_COUNT   CONFIG_SERIAL_PXA_COUNT
+#else
+#define SERIAL_HW_SKIP_COUNT   0
+#endif
+
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0644);
@@ -392,7 +398,7 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info * info,
 			kio_addr_t iobase, int irq)
 {
 	struct uart_port port;
-	int line;
+	int line, linestart;
 
 	memset(&port, 0, sizeof (struct uart_port));
 	port.iobase = iobase;
@@ -413,10 +419,11 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info * info,
 		return -EINVAL;
 	}
 
+	linestart = SERIAL_HW_SKIP_COUNT;
 	info->line[info->ndev] = line;
-	sprintf(info->node[info->ndev].dev_name, "ttyS%d", line);
+	sprintf(info->node[info->ndev].dev_name, "ttyS%d", line + linestart);
 	info->node[info->ndev].major = TTY_MAJOR;
-	info->node[info->ndev].minor = 0x40 + line;
+	info->node[info->ndev].minor = 0x40 + line + linestart;
 	if (info->ndev > 0)
 		info->node[info->ndev - 1].next = &info->node[info->ndev];
 	info->ndev++;

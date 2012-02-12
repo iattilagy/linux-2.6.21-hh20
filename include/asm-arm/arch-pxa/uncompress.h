@@ -19,9 +19,11 @@
 
 static inline void putc(char c)
 {
+#ifdef CONFIG_SERIAL_PXA_CONSOLE
 	while (!(UART[5] & 0x20))
 		barrier();
 	UART[0] = c;
+#endif
 }
 
 /*

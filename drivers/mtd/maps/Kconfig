@@ -418,7 +418,7 @@ config MTD_SA1100
 
 config MTD_IPAQ
 	tristate "CFI Flash device mapped on Compaq/HP iPAQ"
-	depends on IPAQ_HANDHELD && MTD_CFI
+	depends on MTD_CFI
 	help
 	  This provides a driver for the on-board flash of the iPAQ.
 

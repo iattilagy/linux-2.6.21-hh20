@@ -279,10 +279,15 @@ static int sa1100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	spin_lock_irq(&sa1100_rtc_lock);
 	ret = rtc_update_alarm(&alrm->time);
 	if (ret == 0) {
-		if (alrm->enabled)
+		memcpy(&rtc_alarm, &alrm->time, sizeof(struct rtc_time));
+
+		if (alrm->enabled) {
+			enable_irq_wake(IRQ_RTCAlrm);
 			RTSR |= RTSR_ALE;
-		else
+		} else {
+			disable_irq_wake(IRQ_RTCAlrm);
 			RTSR &= ~RTSR_ALE;
+		}
 	}
 	spin_unlock_irq(&sa1100_rtc_lock);
 

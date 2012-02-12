@@ -19,9 +19,13 @@
 #define MAX_NOTE_BYTES 1024
 
 struct kimage;
-/* Provide a dummy definition to avoid build failures. */
+
+/*
+ * Provide a dummy definition to avoid build failures. Will remain
+ * empty till crash dump support is enabled.
+ */
 static inline void crash_setup_regs(struct pt_regs *newregs,
-                                        struct pt_regs *oldregs) { }
+				    struct pt_regs *oldregs) { }
 
 #endif /* __ASSEMBLY__ */
 

@@ -230,11 +230,16 @@ find_ep (struct usb_gadget *gadget, const char *name)
  */
 struct usb_ep * __devinit usb_ep_autoconfig (
 	struct usb_gadget		*gadget,
-	struct usb_endpoint_descriptor	*desc
+	struct usb_endpoint_descriptor	*desc,
+	struct usb_endpoint_config *epconfig, int numconfigs
 )
 {
 	struct usb_ep	*ep;
 	u8		type;
+
+	/* Use device specific ep allocation code if provided */
+	if (gadget->ops->ep_alloc)
+		return gadget->ops->ep_alloc(gadget, desc, epconfig, numconfigs);
 
 	type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 

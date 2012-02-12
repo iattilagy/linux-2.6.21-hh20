@@ -11,7 +11,7 @@
 # Copyright (C) 1995-2001 by Russell King
 
 LDFLAGS_vmlinux	:=-p --no-undefined -X
-CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
+CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET="$(TEXT_OFFSET)"
 OBJCOPYFLAGS	:=-O binary -R .note -R .comment -S
 GZFLAGS		:=-9
 #CFLAGS		+=-pipe
@@ -139,7 +139,12 @@ export CFLAGS_3c589_cs.o
 endif
 
 # The byte offset of the kernel image in RAM from the start of RAM.
+
+ifeq ($(CONFIG_TXTOFFSET_DELTA),y)
+TEXT_OFFSET := $(textofs-y) + $(CONFIG_TXTOFFSET_DELTA_VALUE)
+else
 TEXT_OFFSET := $(textofs-y)
+endif
 
 ifeq ($(incdir-y),)
 incdir-y := $(machine-y)

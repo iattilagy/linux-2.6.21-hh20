@@ -71,12 +71,14 @@ EXPORT_SYMBOL(ASSABET_BCR_frob);
 
 static void assabet_backlight_power(int on)
 {
+#if 0
 #ifndef ASSABET_PAL_VIDEO
 	if (on)
 		ASSABET_BCR_set(ASSABET_BCR_LIGHT_ON);
 	else
 #endif
 		ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
+#endif
 }
 
 /*
@@ -231,6 +233,9 @@ static void __init assabet_init(void)
 	PPDR |= PPC_TXD3 | PPC_TXD1;
 	PPSR |= PPC_TXD3 | PPC_TXD1;
 
+	set_irq_type(IRQ_GPIO0, IRQT_FALLING);
+	enable_irq_wake(IRQ_GPIO0);
+
 	sa1100fb_lcd_power = assabet_lcd_power;
 	sa1100fb_backlight_power = assabet_backlight_power;
 
@@ -308,8 +313,13 @@ fixup_assabet(struct machine_desc *desc, struct tag *tags,
 	map_sa1100_gpio_regs();
 	get_assabet_scr();
 
-	if (machine_has_neponset())
+	if (machine_has_neponset()) {
 		printk("Neponset expansion board detected\n");
+	} else {
+		strcpy(*cmdline, "console=ttySA0,38400n8 cpufreq=221200 "
+			"rw root=/dev/mtdblock3 load_ramdisk=1 prompt_ramdisk=0 "
+			"noinitrd mem=32M");
+	}
 }
 
 

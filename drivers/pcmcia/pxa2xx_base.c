@@ -29,6 +29,7 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/cpufreq.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -58,7 +59,12 @@ static inline u_int pxa2xx_mcxx_asst(u_int pcmcia_cycle_ns,
 				     u_int mem_clk_10khz)
 {
 	u_int code = pcmcia_cycle_ns * mem_clk_10khz;
+// FIXME: There shouldn't be such #ifdef, added 20070803, resolve max in 6months
+#ifdef CONFIG_ARCH_H5400
+	return (code / 300000) + ((code % 300000) ? 1 : 0) + 1;
+#else
 	return (code / 300000) + ((code % 300000) ? 1 : 0) - 1;
+#endif
 }
 
 static inline u_int pxa2xx_mcxx_setup(u_int pcmcia_cycle_ns,
@@ -79,6 +85,7 @@ static inline u_int pxa2xx_pcmcia_cmd_time(u_int mem_clk_10khz,
 
 static int pxa2xx_pcmcia_set_mcmem( int sock, int speed, int clock )
 {
+	if (sock > 1) return 0;
 	MCMEM(sock) = ((pxa2xx_mcxx_setup(speed, clock)
 		& MCXX_SETUP_MASK) << MCXX_SETUP_SHIFT)
 		| ((pxa2xx_mcxx_asst(speed, clock)
@@ -91,6 +98,7 @@ static int pxa2xx_pcmcia_set_mcmem( int sock, int speed, int clock )
 
 static int pxa2xx_pcmcia_set_mcio( int sock, int speed, int clock )
 {
+	if (sock > 1) return 0;
 	MCIO(sock) = ((pxa2xx_mcxx_setup(speed, clock)
 		& MCXX_SETUP_MASK) << MCXX_SETUP_SHIFT)
 		| ((pxa2xx_mcxx_asst(speed, clock)
@@ -103,6 +111,7 @@ static int pxa2xx_pcmcia_set_mcio( int sock, int speed, int clock )
 
 static int pxa2xx_pcmcia_set_mcatt( int sock, int speed, int clock )
 {
+	if (sock > 1) return 0;
 	MCATT(sock) = ((pxa2xx_mcxx_setup(speed, clock)
 		& MCXX_SETUP_MASK) << MCXX_SETUP_SHIFT)
 		| ((pxa2xx_mcxx_asst(speed, clock)
@@ -127,11 +136,12 @@ static int pxa2xx_pcmcia_set_mcxx(struct soc_pcmcia_socket *skt, unsigned int cl
 	return 0;
 }
 
-static int pxa2xx_pcmcia_set_timing(struct soc_pcmcia_socket *skt)
+int pxa2xx_pcmcia_set_timing(struct soc_pcmcia_socket *skt)
 {
 	unsigned int clk = get_memclk_frequency_10khz();
 	return pxa2xx_pcmcia_set_mcxx(skt, clk);
 }
+EXPORT_SYMBOL(pxa2xx_pcmcia_set_timing);
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -140,27 +150,19 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 			       unsigned long val,
 			       struct cpufreq_freqs *freqs)
 {
-#warning "it's not clear if this is right since the core CPU (N) clock has no effect on the memory (L) clock"
+	int freq_mem_old, freq_mem_new;
+	
+	freq_mem_old = pxa_cpufreq_memclk(freqs->old);
+	freq_mem_new = pxa_cpufreq_memclk(freqs->new);
+
 	switch (val) {
 	case CPUFREQ_PRECHANGE:
-		if (freqs->new > freqs->old) {
-			debug(skt, 2, "new frequency %u.%uMHz > %u.%uMHz, "
-			       "pre-updating\n",
-			       freqs->new / 1000, (freqs->new / 100) % 10,
-			       freqs->old / 1000, (freqs->old / 100) % 10);
-			pxa2xx_pcmcia_set_mcxx(skt, freqs->new);
-		}
+	case CPUFREQ_POSTCHANGE:
+	case CPUFREQ_RESUMECHANGE:
+		if (freq_mem_old != freq_mem_new)
+			pxa2xx_pcmcia_set_mcxx(skt, freq_mem_new);
 		break;
 
-	case CPUFREQ_POSTCHANGE:
-		if (freqs->new < freqs->old) {
-			debug(skt, 2, "new frequency %u.%uMHz < %u.%uMHz, "
-			       "post-updating\n",
-			       freqs->new / 1000, (freqs->new / 100) % 10,
-			       freqs->old / 1000, (freqs->old / 100) % 10);
-			pxa2xx_pcmcia_set_mcxx(skt, freqs->new);
-		}
-		break;
 	}
 	return 0;
 }

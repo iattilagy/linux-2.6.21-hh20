@@ -113,6 +113,11 @@ printhex:	adr	r2, hexbuf
 
 		.ltorg
 
+/* XXX joshua 20031110: this *should* be abstracted more. jtag should
+ * probably be made into its own set of waituart senduart busyuart stuff.
+ * but that's SEP.
+ */
+#ifndef CONFIG_LL_PXA_JTAG
 ENTRY(printascii)
 		addruart r3
 		b	2f
@@ -127,6 +132,30 @@ ENTRY(printascii)
 		teqne	r1, #0
 		bne	1b
 		mov	pc, lr
+#else /* JTAG */
+#warning ------------------------------------------------
+#warning WARNING!
+#warning ------------------------------------------------
+#warning JTAG low-level debug is enabled!
+#warning Bad stuff will happen if you don't know what
+#warning you're doing!
+#warning
+#warning Don't say I didn't warn you when stuff breaks!
+#warning ------------------------------------------------
+ENTRY(printascii)
+		b	2f
+1:		mrc	p14, 0, r15, c14, c0, 0
+		bvs	1b
+		mcr	p14, 0, r1, c8, c0, 0
+		teq	r1, #'\n'
+		moveq	r1, #'\r'
+		beq	1b
+2:		teq	r0, #0
+		ldrneb	r1, [r0], #1
+		teqne	r1, #0
+		bne	1b
+		mov	pc, lr
+#endif
 
 ENTRY(printch)
 		addruart r3

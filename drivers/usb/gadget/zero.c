@@ -1143,6 +1143,7 @@ zero_bind (struct usb_gadget *gadget)
 	struct zero_dev		*dev;
 	struct usb_ep		*ep;
 	int			gcnum;
+	struct usb_endpoint_config ep_config[2];
 
 	/* FIXME this can't yet work right with SH ... it has only
 	 * one configuration, numbered one.
@@ -1155,7 +1156,15 @@ zero_bind (struct usb_gadget *gadget)
 	 * but there may also be important quirks to address.
 	 */
 	usb_ep_autoconfig_reset (gadget);
-	ep = usb_ep_autoconfig (gadget, &fs_source_desc);
+
+	ep_config[0].config = CONFIG_SOURCE_SINK;
+	ep_config[0].interface = source_sink_intf.bInterfaceNumber;
+	ep_config[0].altinterface = source_sink_intf.bAlternateSetting;
+	ep_config[1].config = CONFIG_LOOPBACK;
+	ep_config[1].interface = loopback_intf.bInterfaceNumber;
+	ep_config[1].altinterface = loopback_intf.bAlternateSetting;
+
+	ep = usb_ep_autoconfig(gadget, &fs_source_desc, &ep_config[0], 2);
 	if (!ep) {
 autoconf_fail:
 		printk (KERN_ERR "%s: can't autoconfigure on %s\n",
@@ -1165,7 +1174,7 @@ autoconf_fail:
 	EP_IN_NAME = ep->name;
 	ep->driver_data = ep;	/* claim */
 	
-	ep = usb_ep_autoconfig (gadget, &fs_sink_desc);
+	ep = usb_ep_autoconfig(gadget, &fs_sink_desc, &ep_config[0], 2);
 	if (!ep)
 		goto autoconf_fail;
 	EP_OUT_NAME = ep->name;

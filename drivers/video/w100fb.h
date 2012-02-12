@@ -133,6 +133,17 @@
 #define mmSRC_OFFSET          0x11AC
 #define mmSRC_PITCH           0x11B0
 #define mmSRC_Y_X             0x1034
+#define mmHOST_DATA0          0x13C0
+#define mmHOST_DATA1          0x13C4
+#define mmHOST_DATA2          0x13C8
+#define mmHOST_DATA3          0x13CC
+#define mmHOST_DATA4          0x13D0
+#define mmHOST_DATA5          0x13D4
+#define mmHOST_DATA6          0x13D8
+#define mmHOST_DATA7          0x13DC
+#define mmHOST_DATA_LAST      0x13E0
+#define mmDP_SRC_FRGD_CLR     0x1240
+#define mmDP_SRC_BKGD_CLR     0x1244
 #define mmDEFAULT_PITCH_OFFSET      0x10A0
 #define mmDEFAULT_SC_BOTTOM_RIGHT   0x10A8
 #define mmDEFAULT2_SC_BOTTOM_RIGHT  0x10AC
@@ -784,7 +795,9 @@ union pwrmgt_cntl_u {
 	struct pwrmgt_cntl_t f;
 } __attribute__((packed));
 
-#define SRC_DATATYPE_EQU_DST	3
+#define DP_SRC_1BPP_OPA          0
+#define DP_SRC_COLOR_SAME_AS_DST 3
+#define DP_DST_16BPP_1555        3
 
 #define ROP3_SRCCOPY	0xcc
 #define ROP3_PATCOPY	0xf0
@@ -793,6 +806,11 @@ union pwrmgt_cntl_u {
 #define GMC_BRUSH_NONE			15
 
 #define DP_SRC_MEM_RECTANGULAR	2
+#define DP_SRC_HOSTDATA_BIT     3
+#define DP_SRC_HOSTDATA_BYTE    4
+
+#define DP_PIX_ORDER_MSB2LSB    0
+#define DP_PIX_ORDER_LSB2MSB    1
 
 #define DP_OP_ROP	0
 

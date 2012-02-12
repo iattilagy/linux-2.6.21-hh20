@@ -33,6 +33,7 @@ struct led_classdev {
 	int			 flags;
 
 #define LED_SUSPENDED		(1 << 0)
+#define LED_SUPPORTS_HWTIMER	(1 << 1)
 
 	/* Set LED brightness level */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
@@ -70,6 +71,10 @@ struct led_trigger {
 	const char	 *name;
 	void		(*activate)(struct led_classdev *led_cdev);
 	void		(*deactivate)(struct led_classdev *led_cdev);
+	int		(*is_led_supported)(struct led_classdev *led_cdev);
+	/* Custom event handling function */
+	void		(*send_event)(struct led_trigger *trigger, 
+					enum led_brightness brightness);
 
 	/* LEDs under control by this trigger (for simple triggers) */
 	rwlock_t	  leddev_list_lock;
@@ -103,11 +108,85 @@ extern void led_trigger_event(struct led_trigger *trigger,
 
 #endif
 
+/* Registration functions for shared triggers */
+#ifdef CONFIG_LEDS_TRIGGER_SHARED
+
+struct led_trigger_shared {
+	struct led_trigger trigger;
+	int cnt;
+};
+#define DEFINE_LED_TRIGGER_SHARED(x) static struct led_trigger_shared *x;
+#define DEFINE_LED_TRIGGER_SHARED_GLOBAL(x) struct led_trigger_shared *x;
+#define EXPORT_LED_TRIGGER_SHARED(x) EXPORT_SYMBOL(x);
+#define EXTERN_LED_TRIGGER_SHARED(x) extern struct led_trigger_shared *x;
+extern void led_trigger_register_shared(const char *name,
+                                        struct led_trigger_shared **trig);
+extern void led_trigger_unregister_shared(struct led_trigger_shared *trig);
+extern void led_trigger_event_shared(struct led_trigger_shared *trig,
+                                       enum led_brightness b);
+
+#else
+
+/* Shared triggers aren't active - null macros */
+#define DEFINE_LED_TRIGGER_SHARED(x)
+#define DEFINE_LED_TRIGGER_SHARED_GLOBAL(x)
+#define EXPORT_LED_TRIGGER_SHARED(x)
+#define EXTERN_LED_TRIGGER_SHARED(x)
+#define led_trigger_register_shared(x, y)  do {} while(0)
+#define led_trigger_unregister_shared(x)  do {} while(0)
+#define led_trigger_event_shared(x, y)  do {} while(0)
+
+#endif
+
+#if defined(CONFIG_LEDS_TRIGGER_HWTIMER) || defined(CONFIG_LEDS_TRIGGER_HWTIMER_MODULE)
+
+struct hwtimer_data {
+	unsigned long delay_on;  /* milliseconds on */
+	unsigned long delay_off; /* milliseconds off */
+};
+
+extern void led_trigger_register_hwtimer(const char *name,
+                                         struct led_trigger **trig);
+extern void led_trigger_unregister_hwtimer(struct led_trigger *trig);
+
+#else
+
+#define led_trigger_register_hwtimer(x, y)  do {} while(0)
+#define led_trigger_unregister_hwtimer(x)  do {} while(0)
+
+#endif
+#if defined(CONFIG_LEDS_TRIGGER_TIMER) || defined(CONFIG_LEDS_TRIGGER_TIMER_MODULE)
+
+extern void led_trigger_register_timer(const char *name,
+                                         struct led_trigger **trig);
+extern void led_trigger_unregister_timer(struct led_trigger *trig);
+
+#else
+
+#define led_trigger_register_timer(x, y)  do {} while(0)
+#define led_trigger_unregister_timer(x)  do {} while(0)
+
+#endif
+
 /* Trigger specific functions */
 #ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
 extern void ledtrig_ide_activity(void);
 #else
 #define ledtrig_ide_activity() do {} while(0)
 #endif
+
+/* For the leds-gpio driver */
+struct gpio_led {
+	const char *name;
+	char *default_trigger;
+	unsigned 	gpio;
+	u8 		active_low;
+};
+
+struct gpio_led_platform_data {
+	int 		num_leds;
+	struct gpio_led *leds;
+};
+
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

@@ -21,6 +21,7 @@
 #include <asm/system.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa-pm_ll.h>
 #include <asm/arch/lubbock.h>
 #include <asm/mach/time.h>
 
@@ -73,6 +74,8 @@ enum {	SLEEP_SAVE_START = 0,
 };
 
 
+static struct pxa_ll_pm_ops *ll_ops;
+
 int pxa_pm_enter(suspend_state_t state)
 {
 	unsigned long sleep_save[SLEEP_SAVE_SIZE];
@@ -80,6 +83,7 @@ int pxa_pm_enter(suspend_state_t state)
 	struct timespec delta, rtc;
 	int i;
 	extern void pxa_cpu_pm_enter(suspend_state_t state);
+	extern void pxa_cpu_resume(void);
 
 #ifdef CONFIG_IWMMXT
 	/* force any iWMMXt context to ram **/
@@ -127,6 +131,15 @@ int pxa_pm_enter(suspend_state_t state)
 	/* Clear sleep reset status */
 	RCSR = RCSR_SMR;
 
+	/* Set resume return address */
+	PSPR = virt_to_phys(pxa_cpu_resume);
+
+	/* If we have special sus/res logic, use it */
+	if(ll_ops && ll_ops->suspend) {
+		extern void pxa_cpu_resume(void);
+		ll_ops->suspend(virt_to_phys(pxa_cpu_resume));
+	}
+
 	/* before sleeping, calculate and save a checksum */
 	for (i = 0; i < SLEEP_SAVE_SIZE - 1; i++)
 		checksum += sleep_save[i];
@@ -141,6 +154,9 @@ int pxa_pm_enter(suspend_state_t state)
 	checksum = 0;
 	for (i = 0; i < SLEEP_SAVE_SIZE - 1; i++)
 		checksum += sleep_save[i];
+
+	if(ll_ops && ll_ops->resume)
+		ll_ops->resume();
 
 	/* if invalid, display message and wait for a hardware reset */
 	if (checksum != sleep_save[SLEEP_SAVE_CKSUM]) {
@@ -196,6 +212,13 @@ int pxa_pm_enter(suspend_state_t state)
 
 EXPORT_SYMBOL_GPL(pxa_pm_enter);
 
+struct pxa_ll_pm_ops *pxa_pm_set_ll_ops(struct pxa_ll_pm_ops *new_ops) {
+	struct pxa_ll_pm_ops *old_ops = ll_ops;
+	ll_ops = new_ops;
+	return old_ops;
+}
+EXPORT_SYMBOL(pxa_pm_set_ll_ops);
+
 unsigned long sleep_phys_sp(void *sp)
 {
 	return virt_to_phys(sp);
@@ -226,12 +249,13 @@ EXPORT_SYMBOL_GPL(pxa_pm_finish);
 /*
  * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
  */
-static struct pm_ops pxa_pm_ops = {
+struct pm_ops pxa_pm_ops = {
 	.pm_disk_mode	= PM_DISK_FIRMWARE,
 	.prepare	= pxa_pm_prepare,
 	.enter		= pxa_pm_enter,
 	.finish		= pxa_pm_finish,
 };
+EXPORT_SYMBOL(pxa_pm_ops);
 
 static int __init pxa_pm_init(void)
 {

@@ -14,6 +14,11 @@
 
 __SA1100_start:
 
+#ifdef CONFIG_LAB	// if this is a LAB kernel, we're going to want to have bootloader code in it.
+		b	HiReset
+#		include "bootldr-sa1100.S"
+bootldr_main:
+#endif
 		@ Preserve r8/r7 i.e. kernel entry values
 #ifdef CONFIG_SA1100_COLLIE
 		mov	r7, #MACH_TYPE_COLLIE

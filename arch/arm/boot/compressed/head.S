@@ -112,6 +112,7 @@
  */
 		.align
 start:
+#ifndef CONFIG_LAB_BOOTSTRAP
 		.type	start,#function
 		.rept	8
 		mov	r0, r0
@@ -148,6 +149,7 @@ not_angel:
 		 * be needed here - is there an Angel SWI call for this?
 		 */
 
+#endif /* !CONFIG_LAB */
 		/*
 		 * some architecture specific code can be inserted
 		 * by the linker here, but it should preserve r7, r8, and r9.
@@ -784,6 +786,24 @@ phex:		adr	r3, phexbuf
 		strb	r2, [r3, r1]
 		b	1b
 
+#ifdef CONFIG_LL_PXA_JTAG
+puts:
+1:		ldrb	r2, [r0], #1
+		teq	r2, #0
+		moveq	pc, lr
+2:		mrc	p14, 0, r15, c14, c0, 0
+		bvs	2b
+		mcr	p14, 0, r2, c8, c0, 0
+		mov	r1, #0x00020000
+3:		subs	r1, r1, #1
+		bne	3b
+		teq	r2, #'\n'
+		moveq	r2, #'\r'
+		beq	2b
+		teq	r0, #0
+		bne	1b
+		mov	pc, lr
+#else /* not jtag */
 puts:		loadsp	r3
 1:		ldrb	r2, [r0], #1
 		teq	r2, #0
@@ -798,6 +818,8 @@ puts:		loadsp	r3
 		teq	r0, #0
 		bne	1b
 		mov	pc, lr
+#endif
+
 putc:
 		mov	r2, r0
 		mov	r0, #0
@@ -837,4 +859,5 @@ reloc_end:
 
 		.align
 		.section ".stack", "w"
+		.globl	user_stack		@ for external use by LAB
 user_stack:	.space	4096

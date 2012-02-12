@@ -7,11 +7,11 @@ struct gpio_keys_button {
 	int gpio;
 	int active_low;
 	char *desc;
+	int type;
 };
 
 struct gpio_keys_platform_data {
 	struct gpio_keys_button *buttons;
 	int nbuttons;
 };
-
 #endif

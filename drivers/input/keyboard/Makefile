@@ -20,3 +20,12 @@ obj-$(CONFIG_KEYBOARD_OMAP)		+= omap-keypad.o
 obj-$(CONFIG_KEYBOARD_AAED2000)		+= aaed2000_kbd.o
 obj-$(CONFIG_KEYBOARD_GPIO)		+= gpio_keys.o
 
+obj-$(CONFIG_GPIODEV_KEYS)   		+= gpiodev_keys.o
+obj-$(CONFIG_GPIODEV_KEYS2)   		+= gpiodev_keys2.o
+obj-$(CONFIG_GPIODEV_DIAGONAL)		+= gpiodev_diagonal.o
+obj-$(CONFIG_KEYBOARD_ASIC2)		+= asic2_keys.o
+obj-$(CONFIG_KEYBOARD_ASIC3)		+= asic3_keys.o
+obj-$(CONFIG_KEYBOARD_H2200)		+= h2200_kbd.o
+obj-$(CONFIG_KEYBOARD_PXA27x)		+= pxa27x_keyboard.o
+obj-$(CONFIG_KEYBOARD_MICRO)		+= micro_keys.o
+obj-$(CONFIG_KEYBOARD_TSC2200)		+= tsc2200_keys.o

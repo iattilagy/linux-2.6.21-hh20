@@ -2,9 +2,6 @@ if ARCH_PXA
 
 menu "Intel PXA2xx Implementations"
 
-choice
-	prompt "Select target board"
-
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform"
 	select PXA25x
@@ -22,6 +19,46 @@ config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
 	select PXA25x
 
+source "arch/arm/mach-pxa/eseries/Kconfig"
+source "arch/arm/mach-pxa/asus620/Kconfig"
+source "arch/arm/mach-pxa/asus716/Kconfig"
+source "arch/arm/mach-pxa/asus730/Kconfig"
+source "arch/arm/mach-pxa/h1900/Kconfig"
+source "arch/arm/mach-pxa/h2200/Kconfig"
+source "arch/arm/mach-pxa/h3900/Kconfig"
+source "arch/arm/mach-pxa/h4000/Kconfig"
+source "arch/arm/mach-pxa/hx4700/Kconfig"
+source "arch/arm/mach-pxa/hx2750/Kconfig"
+source "arch/arm/mach-pxa/h5400/Kconfig"
+source "arch/arm/mach-pxa/htchimalaya/Kconfig"
+source "arch/arm/mach-pxa/htcuniversal/Kconfig"
+source "arch/arm/mach-pxa/htcalpine/Kconfig"
+source "arch/arm/mach-pxa/magician/Kconfig"
+source "arch/arm/mach-pxa/htcapache/Kconfig"
+source "arch/arm/mach-pxa/htcblueangel/Kconfig"
+source "arch/arm/mach-pxa/htcsable/Kconfig"
+source "arch/arm/mach-pxa/htcathena/Kconfig"
+source "arch/arm/mach-pxa/aximx3/Kconfig"
+source "arch/arm/mach-pxa/aximx5/Kconfig"
+source "arch/arm/mach-pxa/aximx30/Kconfig"
+source "arch/arm/mach-pxa/aximx50/Kconfig"
+source "arch/arm/mach-pxa/rover/Kconfig"
+source "arch/arm/mach-pxa/palmld/Kconfig"
+source "arch/arm/mach-pxa/palmt3/Kconfig"
+source "arch/arm/mach-pxa/plat-recon/Kconfig"
+
+config MACH_GHI270HG
+	bool "Grayhill Duramax HG"
+
+config MACH_GHI270
+	bool "Grayhill Duramax H"
+	select PXA27x
+	select MACH_GHI270HG
+
+config MACH_LOOXC550
+	bool "FSC LOOX C550"
+	select PXA27x
+
 config PXA_SHARPSL
 	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models"
 	select SHARP_SCOOP
@@ -36,8 +73,6 @@ config PXA_SHARPSL
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
 	select PXA27x
-
-endchoice
 
 if PXA_SHARPSL
 
@@ -121,6 +156,11 @@ config PXA25x
 	help
 	  Select code specific to PXA21x/25x/26x variants
 
+config PXA26x
+	bool
+	help
+	  Select code specific to PXA26x variants
+
 config PXA27x
 	bool
 	help
@@ -144,4 +184,20 @@ config PXA_SSP
 	tristate
 	help
 	  Enable support for PXA2xx SSP ports
+
+config PXA_SUSPEND_SAVE_EXTRA_REGS
+	bool
+	help
+	  Save additional registers on the stack during suspend
+	  to work around certain bootloaders overwriting them
+	  during resume.
+
+config PXA27x_VOLTAGE
+	tristate "Support PXA27x CPU Core Voltage Change Sequencer"
+	depends PXA27x && CPU_FREQ_PXA
+
+config PXA27x_VOLTAGE_MAX158xx
+	tristate "MAX158xx PMIC"
+	depends on PXA27x_VOLTAGE
+
 endif

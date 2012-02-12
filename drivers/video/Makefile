@@ -22,6 +22,7 @@ obj-$(CONFIG_FB_MACMODES)      += macmodes.o
 obj-$(CONFIG_FB_DDC)           += fb_ddc.o
 
 # Hardware specific drivers go first
+obj-$(CONFIG_FB_VSFB)             += vsfb.o
 obj-$(CONFIG_FB_AMIGA)            += amifb.o c2p.o
 obj-$(CONFIG_FB_ARC)              += arcfb.o
 obj-$(CONFIG_FB_CLPS711X)         += clps711xfb.o
@@ -73,6 +74,9 @@ obj-$(CONFIG_FB_TGA)              += tgafb.o
 obj-$(CONFIG_FB_HP300)            += hpfb.o
 obj-$(CONFIG_FB_G364)             += g364fb.o
 obj-$(CONFIG_FB_SA1100)           += sa1100fb.o
+obj-$(CONFIG_FB_EPSON1356)	  += epson1356fb.o
+obj-$(CONFIG_FB_MQ1100)		  += mq1100fb.o
+obj-$(CONFIG_FB_MQ200)		  += mq200/
 obj-$(CONFIG_FB_HIT)              += hitfb.o
 obj-$(CONFIG_FB_EPSON1355)	  += epson1355fb.o
 obj-$(CONFIG_FB_PVR2)             += pvr2fb.o

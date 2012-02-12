@@ -108,6 +108,10 @@ static inline void mark_rodata_ro(void) { }
 extern void tc_init(void);
 #endif
 
+#if defined(CONFIG_LAB)
+extern void lab_run(void);
+#endif
+
 enum system_states system_state;
 EXPORT_SYMBOL(system_state);
 
@@ -820,6 +824,11 @@ static int __init init(void * unused)
 	 * we're essentially up and running. Get rid of the
 	 * initmem segments and start the user-mode stuff..
 	 */
+#if !defined(CONFIG_LAB)
 	init_post();
 	return 0;
+#else
+	lab_run();
+	return -1;
+#endif
 }

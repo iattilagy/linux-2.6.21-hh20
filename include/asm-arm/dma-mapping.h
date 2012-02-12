@@ -7,6 +7,18 @@
 
 #include <asm/scatterlist.h>
 
+#define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+extern int
+dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+			    dma_addr_t device_addr, size_t size, int flags);
+
+extern void
+dma_release_declared_memory(struct device *dev);
+
+extern void *
+dma_mark_declared_memory_occupied(struct device *dev,
+				  dma_addr_t device_addr, size_t size);
+
 /*
  * DMA-consistent mapping functions.  These allocate/free a region of
  * uncached, unwrite-buffered mapped memory space for use with DMA

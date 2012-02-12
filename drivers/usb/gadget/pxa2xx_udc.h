@@ -128,7 +128,8 @@ struct pxa2xx_udc {
 						has_cfr : 1,
 						req_pending : 1,
 						req_std : 1,
-						req_config : 1;
+						req_config : 1,
+						out_dma : 1;
 
 #define start_watchdog(dev) mod_timer(&dev->timer, jiffies + (HZ/200))
 	struct timer_list			timer;

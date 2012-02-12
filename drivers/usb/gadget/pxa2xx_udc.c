@@ -104,6 +104,7 @@ static const char ep0name [] = "ep0";
 #include "pxa2xx_udc.h"
 
 
+static void udc_init_eps(struct pxa2xx_udc *dev);
 #ifdef	USE_DMA
 static int use_dma = 1;
 module_param(use_dma, bool, 0);
@@ -2473,6 +2474,53 @@ static struct pxa2xx_udc memory = {
 #define IXP425_B0		0x000001f1
 #define IXP465_AD		0x00000200
 
+static void udc_init_eps(struct pxa2xx_udc *dev) {
+#ifdef  USE_DMA
+        /* pxa 250 erratum 130 prevents using OUT dma (fixed C0) */
+        if (!dev->out_dma) {
+                DMSG("disabled OUT dma\n");
+                dev->ep[ 2].reg_drcmr = dev->ep[ 4].reg_drcmr = 0;
+                dev->ep[ 7].reg_drcmr = dev->ep[ 9].reg_drcmr = 0;
+                dev->ep[12].reg_drcmr = dev->ep[14].reg_drcmr = 0;
+        }
+#endif
+
+        /* Reset UDCCS register to be able to recover from whatever
+         * state UDC was previously in. */
+        *dev->ep[ 2].reg_udccs = UDCCS_BO_RPC | UDCCS_BO_SST;
+#ifndef CONFIG_USB_PXA2XX_SMALL
+        *dev->ep[ 7].reg_udccs = UDCCS_BO_RPC | UDCCS_BO_SST;
+        *dev->ep[12].reg_udccs = UDCCS_BO_RPC | UDCCS_BO_SST;
+#endif
+
+        *dev->ep[ 1].reg_udccs = UDCCS_BI_TPC | UDCCS_BI_FTF |
+                UDCCS_BI_TUR | UDCCS_BI_SST | UDCCS_BI_TSP;
+#ifndef CONFIG_USB_PXA2XX_SMALL
+        *dev->ep[ 6].reg_udccs = UDCCS_BI_TPC | UDCCS_BI_FTF |
+                UDCCS_BI_TUR | UDCCS_BI_SST | UDCCS_BI_TSP;
+        *dev->ep[11].reg_udccs = UDCCS_BI_TPC | UDCCS_BI_FTF |
+                UDCCS_BI_TUR | UDCCS_BI_SST | UDCCS_BI_TSP;
+
+        *dev->ep[ 3].reg_udccs = UDCCS_II_TPC | UDCCS_II_FTF |
+                UDCCS_II_TUR | UDCCS_II_TSP;
+        *dev->ep[ 8].reg_udccs = UDCCS_II_TPC | UDCCS_II_FTF |
+                UDCCS_II_TUR | UDCCS_II_TSP;
+        *dev->ep[13].reg_udccs = UDCCS_II_TPC | UDCCS_II_FTF |
+                UDCCS_II_TUR | UDCCS_II_TSP;
+
+        *dev->ep[ 4].reg_udccs = UDCCS_IO_RPC | UDCCS_IO_ROF;
+        *dev->ep[ 9].reg_udccs = UDCCS_IO_RPC | UDCCS_IO_ROF;
+        *dev->ep[11].reg_udccs = UDCCS_IO_RPC | UDCCS_IO_ROF;
+
+        *dev->ep[ 5].reg_udccs = UDCCS_INT_TPC | UDCCS_INT_FTF |
+                UDCCS_INT_TUR | UDCCS_INT_SST;
+        *dev->ep[10].reg_udccs = UDCCS_INT_TPC | UDCCS_INT_FTF |
+                UDCCS_INT_TUR | UDCCS_INT_SST;
+        *dev->ep[15].reg_udccs = UDCCS_INT_TPC | UDCCS_INT_FTF |
+                UDCCS_INT_TUR | UDCCS_INT_SST;
+#endif
+}
+
 /*
  * 	probe - binds to the platform device
  */
@@ -2489,6 +2537,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	dev->out_dma = 1;
 	/* trigger chiprev-specific logic */
 	switch (chiprev & CP15R0_PRODREV_MASK) {
 #if	defined(CONFIG_ARCH_PXA)
@@ -2502,7 +2551,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	case PXA250_B2: case PXA210_B2:
 	case PXA250_B1: case PXA210_B1:
 	case PXA250_B0: case PXA210_B0:
-		out_dma = 0;
+		dev->out_dma = 0;
 		/* fall through */
 	case PXA250_C0: case PXA210_C0:
 		break;
@@ -2511,11 +2560,11 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	case IXP425_B0:
 	case IXP465_AD:
 		dev->has_cfr = 1;
-		out_dma = 0;
+		dev->out_dma = 0;
 		break;
 #endif
 	default:
-		out_dma = 0;
+		dev->out_dma = 0;
 		printk(KERN_ERR "%s: unrecognized processor: %08x\n",
 			driver_name, chiprev);
 		/* iop3xx, ixp4xx, ... */
@@ -2524,22 +2573,16 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 
 	pr_debug("%s: IRQ %d%s%s%s\n", driver_name, IRQ_USB,
 		dev->has_cfr ? "" : " (!cfr)",
-		out_dma ? "" : " (broken dma-out)",
+		dev->out_dma ? "" : " (broken dma-out)",
 		SIZE_STR DMASTR
 		);
 
 #ifdef	USE_DMA
 #ifndef	USE_OUT_DMA
-	out_dma = 0;
+	dev->out_dma = 0;
 #endif
-	/* pxa 250 erratum 130 prevents using OUT dma (fixed C0) */
-	if (!out_dma) {
-		DMSG("disabled OUT dma\n");
-		dev->ep[ 2].reg_drcmr = dev->ep[ 4].reg_drcmr = 0;
-		dev->ep[ 7].reg_drcmr = dev->ep[ 9].reg_drcmr = 0;
-		dev->ep[12].reg_drcmr = dev->ep[14].reg_drcmr = 0;
-	}
 #endif
+	udc_init_eps(dev);
 
 	/* other non-static parts of init */
 	dev->dev = &pdev->dev;
@@ -2567,7 +2610,8 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	udc_disable(dev);
 	udc_reinit(dev);
 
-	dev->vbus = is_vbus_present();
+	//dev->vbus = is_vbus_present();
+	dev->vbus = 1;
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = request_irq(IRQ_USB, pxa2xx_udc_irq,

@@ -34,6 +34,10 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/h1940.h>
 
+#ifdef CONFIG_MACH_G500 
+#include <asm/arch/g500.h>
+#endif
+
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/pm.h>
 
@@ -43,6 +47,11 @@ extern void pm_dbg(const char *fmt, ...);
 #else
 #define DBG(fmt...) printk(KERN_DEBUG fmt)
 #endif
+
+// space for saving memory location where we copy resume code 
+// (a few instructions for now, see sleep.S, should be dynamically
+// computed)
+static unsigned long s3c24xx_resume_addr_save[4];
 
 static void s3c2410_pm_prepare(void)
 {
@@ -85,6 +94,13 @@ static void s3c2410_pm_prepare(void)
 	if ( machine_is_aml_m5900() )
 		s3c2410_gpio_setpin(S3C2410_GPF2, 1);
 
+#ifdef CONFIG_MACH_G500 
+	// save previous memory area before to overwrite it with the resume code
+	memcpy(s3c24xx_resume_addr_save, phys_to_virt(G500_SUSPEND_RESUMEAT), 16);
+
+	// now write the resume code
+    	memcpy(phys_to_virt(G500_SUSPEND_RESUMEAT), h1940_pm_return, 16);
+#endif
 }
 
 static int s3c2410_pm_resume(struct sys_device *dev)
@@ -100,6 +116,10 @@ static int s3c2410_pm_resume(struct sys_device *dev)
 	if ( machine_is_aml_m5900() )
 		s3c2410_gpio_setpin(S3C2410_GPF2, 0);
 
+#ifdef CONFIG_MACH_G500 
+	// put back the previous data to the address where we copied the resume code
+	memcpy(phys_to_virt(G500_SUSPEND_RESUMEAT), s3c24xx_resume_addr_save, 16);
+#endif
 	return 0;
 }
 

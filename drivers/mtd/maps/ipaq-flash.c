@@ -5,7 +5,7 @@
  * (C) 2002 Hewlett-Packard Company <jamey.hicks@hp.com>
  * (C) 2003 Christian Pellegrin <chri@ascensit.com>, <chri@infis.univ.ts.it>: concatenation of multiple flashes
  *
- * $Id: ipaq-flash.c,v 1.5 2005/11/07 11:14:27 gleixner Exp $
+ * $Id: ipaq-flash.c,v 1.12 2004/08/16 12:48:53 michaelo Exp $
  */
 
 #include <linux/module.h>
@@ -30,9 +30,18 @@
 #include <asm/arch-sa1100/h3600.h>
 #include <asm/io.h>
 
+#ifdef CONFIG_ARCH_PXA
+#include <asm/arch-pxa/pxa-regs.h>
+#include <asm/arch-pxa/h3900-gpio.h>
+#endif
 
-#ifndef CONFIG_IPAQ_HANDHELD
-#error This is for iPAQ Handhelds only
+#if !defined(CONFIG_SA1100_H3XXX) \
+  && !defined(CONFIG_MACH_H3900) \
+  && !defined(CONFIG_ARCH_H5400) \
+  && !defined(CONFIG_ARCH_H1900) \
+  && !defined(CONFIG_SA1100_JORNADA56X) \
+  && !defined(CONFIG_SA1100_JORNADA720)
+#error This is for iPAQ and similar Handhelds with NOR flash only
 #endif
 #ifdef CONFIG_SA1100_JORNADA56X
 
@@ -92,35 +101,53 @@ static struct mtd_info *my_sub_mtd[MAX_IPAQ_CS] = {
  * entries.  Thanks.
  */
 
-#ifdef CONFIG_IPAQ_HANDHELD
+#define IPAQ_ASSET_SIZE		0x00040000
+#define IPAQ_HOME_SIZE		0
+#define IPAQ_KERNEL_SIZE	0
+#define IPAQ_ROOTFS_SIZE	0x2000000 - IPAQ_ASSET_SIZE - IPAQ_BOOTLDR_SIZE /* Warning, this is fixed later */
+#define IPAQ_ROOTFS_NDX		1
+#define IPAQ_ASSET_NDX		2
+
+#if defined(CONFIG_LAB)
+#define IPAQ_BOOTLDR_SIZE	0x00080000
+#else
+#define IPAQ_BOOTLDR_SIZE	0x00040000
+#endif
+
+#if 1
 static unsigned long h3xxx_max_flash_size = 0x04000000;
 static struct mtd_partition h3xxx_partitions[] = {
 	{
-		name:		"H3XXX boot firmware",
-#ifndef CONFIG_LAB
-		size:		0x00040000,
-#else
-		size:		0x00080000,
-#endif
+		name:		"iPAQ boot firmware",
+		size:		IPAQ_BOOTLDR_SIZE,
 		offset:		0,
 #ifndef CONFIG_LAB
 		mask_flags:	MTD_WRITEABLE,  /* force read-only */
 #endif
 	},
+#if (IPAQ_KERNEL_SIZE != 0)
 	{
-		name:		"H3XXX root jffs2",
-#ifndef CONFIG_LAB
-		size:		0x2000000 - 2*0x40000, /* Warning, this is fixed later */
-		offset:		0x00040000,
-#else
-		size:		0x2000000 - 0x40000 - 0x80000, /* Warning, this is fixed later */
-		offset:		0x00080000,
-#endif
+		name:		"iPAQ kernel",
+		size:		IPAQ_KERNEL_SIZE,
+		offset:		IPAQ_BOOTLDR_SIZE,
 	},
+#endif
 	{
-		name:		"asset",
-		size:		0x40000,
-		offset:		0x2000000 - 0x40000, /* Warning, this is fixed later */
+		name:		"iPAQ root",
+		size:		IPAQ_ROOTFS_SIZE, /* Warning, this is fixed later */
+		offset:		IPAQ_BOOTLDR_SIZE + IPAQ_KERNEL_SIZE,
+	},
+#if (IPAQ_HOME_SIZE != 0)
+	{
+		name:		"iPAQ home",
+		size:		IPAQ_HOME_SIZE,
+		offset:		IPAQ_BOOTLDR_SIZE + IPAQ_KERNEL_SIZE + IPAQ_ROOTFS_SIZE,
+	},
+#endif
+	{
+		name:		"Asset",
+		size:		IPAQ_ASSET_SIZE,
+		offset:		0x2000000 - IPAQ_ASSET_SIZE, /* Warning, this is fixed later */
 		mask_flags:	MTD_WRITEABLE,  /* force read-only */
 	}
 };
@@ -129,20 +156,38 @@ static struct mtd_partition h3xxx_partitions[] = {
 static struct mtd_partition h3xxx_partitions_bank2[] = {
 	/* this is used only on 2 CS machines when concat is not present */
 	{
-		name:		"second H3XXX root jffs2",
-		size:		0x1000000 - 0x40000, /* Warning, this is fixed later */
+		name:		"second iPAQ root",
+		size:		0x1000000 - IPAQ_ASSET_SIZE, /* Warning, this is fixed later */
 		offset:		0x00000000,
 	},
 	{
 		name:		"second asset",
-		size:		0x40000,
-		offset:		0x1000000 - 0x40000, /* Warning, this is fixed later */
+		size:		IPAQ_ASSET_SIZE,
+		offset:		0x1000000 - IPAQ_ASSET_SIZE, /* Warning, this is fixed later */
 		mask_flags:	MTD_WRITEABLE,  /* force read-only */
 	}
 };
 #endif
 
 static DEFINE_SPINLOCK(ipaq_vpp_lock);
+
+static void h3xxx_really_set_vpp(int vpp)
+{
+#ifdef CONFIG_ARCH_SA1100
+	assign_ipaqsa_egpio(IPAQ_EGPIO_VPP_ON, vpp);
+#endif
+#ifdef CONFIG_ARCH_PXA
+	if (machine_is_h3900 ()) {
+		if (vpp)
+			GPSR(GPIO_NR_H3900_FLASH_VPEN) = GPIO_H3900_FLASH_VPEN;
+		else
+			GPCR(GPIO_NR_H3900_FLASH_VPEN) = GPIO_H3900_FLASH_VPEN;
+	}
+	if (machine_is_h5400 ()) {
+		/* Vpp is always enabled on h5400 */
+	}
+#endif
+}
 
 static void h3xxx_set_vpp(struct map_info *map, int vpp)
 {
@@ -151,12 +196,13 @@ static void h3xxx_set_vpp(struct map_info *map, int vpp)
 	spin_lock(&ipaq_vpp_lock);
 	if (vpp)
 		nest++;
-	else
+	else if (nest != 0)	/* don't go negative */
 		nest--;
 	if (nest)
-		assign_h3600_egpio(IPAQ_EGPIO_VPP_ON, 1);
+		h3xxx_really_set_vpp (1);
 	else
-		assign_h3600_egpio(IPAQ_EGPIO_VPP_ON, 0);
+		h3xxx_really_set_vpp (0);
+		
 	spin_unlock(&ipaq_vpp_lock);
 }
 
@@ -237,7 +283,7 @@ int __init ipaq_mtd_init(void)
 	simple_map_init(&ipaq_map[0]);
 	simple_map_init(&ipaq_map[1]);
 
-#ifdef CONFIG_IPAQ_HANDHELD
+#if defined(CONFIG_SA1100_H3XXX) || defined(CONFIG_MACH_H3900)
 	if (machine_is_ipaq()) {
 		parts = h3xxx_partitions;
 		nb_parts = ARRAY_SIZE(h3xxx_partitions);
@@ -251,7 +297,7 @@ int __init ipaq_mtd_init(void)
 		}
 		if (machine_is_h3600()) {
 			/* No asset partition here */
-			h3xxx_partitions[1].size += 0x40000;
+			h3xxx_partitions[1].size += IPAQ_ASSET_SIZE;
 			nb_parts--;
 		}
 	}
@@ -294,10 +340,10 @@ int __init ipaq_mtd_init(void)
 
 	if (machine_is_ipaq()) { /* for iPAQs only */
 		for(i=0; i<MAX_IPAQ_CS; i++) {
-			printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%lx with CFI.\n", ipaq_map[i].bankwidth*8, ipaq_map[i].virt);
+			printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%x with CFI.\n", ipaq_map[i].bankwidth*8, (__u32)ipaq_map[i].virt);
 			my_sub_mtd[i] = do_map_probe("cfi_probe", &ipaq_map[i]);
 			if (!my_sub_mtd[i]) {
-				printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%lx with JEDEC.\n", ipaq_map[i].bankwidth*8, ipaq_map[i].virt);
+				printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%x with JEDEC.\n", ipaq_map[i].bankwidth*8, (__u32)ipaq_map[i].virt);
 				my_sub_mtd[i] = do_map_probe("jedec_probe", &ipaq_map[i]);
 			}
 			if (!my_sub_mtd[i]) {
@@ -314,14 +360,12 @@ int __init ipaq_mtd_init(void)
 			my_sub_mtd[i]->owner = THIS_MODULE;
 			tot_flashsize += my_sub_mtd[i]->size;
 		}
+		printk( KERN_NOTICE "iPAQ flash: total size is 0x%x\n", (unsigned int) tot_flashsize );
 #ifdef CONFIG_MTD_CONCAT
-		/* fix the asset location */
-#	ifdef CONFIG_LAB
-		h3xxx_partitions[1].size = tot_flashsize - 0x40000 - 0x80000 /* extra big boot block */;
-#	else
-		h3xxx_partitions[1].size = tot_flashsize - 2 * 0x40000;
-#	endif
-		h3xxx_partitions[2].offset = tot_flashsize - 0x40000;
+		h3xxx_partitions[IPAQ_ROOTFS_NDX].size = tot_flashsize
+			- IPAQ_ASSET_SIZE - IPAQ_BOOTLDR_SIZE - IPAQ_KERNEL_SIZE
+			- IPAQ_HOME_SIZE;
+		h3xxx_partitions[IPAQ_ASSET_NDX].offset = tot_flashsize - IPAQ_ASSET_SIZE;
 		/* and concat the devices */
 		mymtd = mtd_concat_create(&my_sub_mtd[0], i,
 					  "ipaq");
@@ -341,28 +385,16 @@ int __init ipaq_mtd_init(void)
 		mymtd->name = "ipaq";
 
 		if ((machine_is_h3600())) {
-#	ifdef CONFIG_LAB
-			h3xxx_partitions[1].size = my_sub_mtd[0]->size - 0x80000;
-#	else
-			h3xxx_partitions[1].size = my_sub_mtd[0]->size - 0x40000;
-#	endif
+			h3xxx_partitions[1].size = my_sub_mtd[0]->size - IPAQ_BOOTLDR_SIZE;
 			nb_parts = 2;
 		} else {
-#	ifdef CONFIG_LAB
-			h3xxx_partitions[1].size = my_sub_mtd[0]->size - 0x40000 - 0x80000; /* extra big boot block */
-#	else
-			h3xxx_partitions[1].size = my_sub_mtd[0]->size - 2*0x40000;
-#	endif
-			h3xxx_partitions[2].offset = my_sub_mtd[0]->size - 0x40000;
+			h3xxx_partitions[1].size = my_sub_mtd[0]->size - IPAQ_ASSET_SIZE - IPAQ_BOOTLDR_SIZE;
+			h3xxx_partitions[2].offset = my_sub_mtd[0]->size - IPAQ_ASSET_SIZE;
 		}
 
 		if (my_sub_mtd[1]) {
-#	ifdef CONFIG_LAB
-			h3xxx_partitions_bank2[0].size = my_sub_mtd[1]->size - 0x80000;
-#	else
-			h3xxx_partitions_bank2[0].size = my_sub_mtd[1]->size - 0x40000;
-#	endif
-			h3xxx_partitions_bank2[1].offset = my_sub_mtd[1]->size - 0x40000;
+			h3xxx_partitions_bank2[0].size = my_sub_mtd[1]->size - IPAQ_BOOTLDR_SIZE;
+			h3xxx_partitions_bank2[1].offset = my_sub_mtd[1]->size - IPAQ_ASSET_SIZE;
 		}
 #endif
 	}
@@ -371,7 +403,7 @@ int __init ipaq_mtd_init(void)
 		 * Now let's probe for the actual flash.  Do it here since
 		 * specific machine settings might have been set above.
 		 */
-		printk(KERN_NOTICE "IPAQ flash: probing %d-bit flash bus, window=%lx\n", ipaq_map[0].bankwidth*8, ipaq_map[0].virt);
+		printk(KERN_NOTICE "IPAQ flash: probing %d-bit flash bus, window=%x\n", ipaq_map[0].bankwidth*8, (__u32)ipaq_map[0].virt);
 		mymtd = do_map_probe("cfi_probe", &ipaq_map[0]);
 		if (!mymtd)
 			return -ENXIO;
@@ -430,7 +462,8 @@ static void __exit ipaq_mtd_cleanup(void)
 				if (my_sub_mtd[i])
 					map_destroy(my_sub_mtd[i]);
 			}
-		kfree(parsed_parts);
+		if (parsed_parts)
+			kfree(parsed_parts);
 	}
 }
 
@@ -444,7 +477,7 @@ static int __init h1900_special_case(void)
 	ipaq_map[0].virt = ioremap(0x0, 0x04000000);
 	ipaq_map[0].bankwidth = 2;
 
-	printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%lx with JEDEC.\n", ipaq_map[0].bankwidth*8, ipaq_map[0].virt);
+	printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%x with JEDEC.\n", ipaq_map[0].bankwidth*8, (__u32)ipaq_map[0].virt);
 	mymtd = do_map_probe("jedec_probe", &ipaq_map[0]);
 	if (!mymtd)
 		return -ENODEV;

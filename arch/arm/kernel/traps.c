@@ -32,6 +32,8 @@
 #include "ptrace.h"
 #include "signal.h"
 
+extern int sys_lbl (unsigned long r0, unsigned long r1, unsigned long r2);
+
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
 
 #ifdef CONFIG_DEBUG_USER
@@ -108,7 +110,7 @@ static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
 	set_fs(fs);
 }
 
-static void dump_instr(struct pt_regs *regs)
+/*static*/ void dump_instr(struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
 	const int thumb = thumb_mode(regs);
@@ -145,7 +147,7 @@ static void dump_instr(struct pt_regs *regs)
 	set_fs(fs);
 }
 
-static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+/*static*/ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
 	unsigned int fp;
 	int ok = 1;
@@ -466,6 +468,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		*((unsigned int *)0xffff0ff0) = regs->ARM_r0;
 #endif
 		return 0;
+#ifdef CONFIG_ARMBOOT_LBL_SYSCALL
+	case NR(lbl):
+		return sys_lbl (regs->ARM_r0, regs->ARM_r1, regs->ARM_r2);
+#endif
 
 #ifdef CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG
 	/*

@@ -532,6 +532,13 @@ struct nand_bbt_descr {
 /* Search good / bad pattern on the first and the second page */
 #define NAND_BBT_SCAN2NDPAGE	0x00004000
 
+/* Interleave architecture allows 16bits internal access
+ * instead of 8bit internal access to arrauy of daul NAND flash,
+ * which means array of two 8bit NAND flash will be seen as one
+ * large 16bit NAND flash.
+ */
+#define NAND_INTERLEAVE     0x00100000
+
 /* The maximum number of blocks to scan for a bbt */
 #define NAND_BBT_SCAN_MAXBLOCKS	4
 

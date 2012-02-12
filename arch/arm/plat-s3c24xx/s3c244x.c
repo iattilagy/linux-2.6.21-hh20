@@ -48,6 +48,7 @@ static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
 	IODESC_ENT(LCD),
+	IODESC_ENT(USBDEV),
 };
 
 /* uart initialisation */
@@ -68,6 +69,7 @@ void __init s3c244x_map_io(struct map_desc *mach_desc, int size)
 
 	s3c_device_i2c.name  = "s3c2440-i2c";
 	s3c_device_nand.name = "s3c2440-nand";
+	s3c_device_ts.name = "s3c2440-ts";
 	s3c_device_usbgadget.name = "s3c2440-usbgadget";
 }
 

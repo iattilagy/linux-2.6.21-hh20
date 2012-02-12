@@ -21,8 +21,6 @@
  *                              merged HAL layer (patches from Brian)
  */
 
-/* $Id: sa11xx-uda1341.c,v 1.27 2005/12/07 09:13:42 cladisch Exp $ */
-
 /***************************************************************************************************
 *
 * To understand what Alsa Drivers should be doing look at "Writing an Alsa Driver" by Takashi Iwai
@@ -167,8 +165,8 @@ static struct platform_device *device;
 #define GPIO_H3600_CLK_SET1		GPIO_GPIO (13)
 
 #ifdef CONFIG_SA1100_H3XXX
-#define	clr_sa11xx_uda1341_egpio(x)	clr_h3600_egpio(x)
-#define set_sa11xx_uda1341_egpio(x)	set_h3600_egpio(x)
+#define	clr_sa11xx_uda1341_egpio(x)	clr_ipaqsa_egpio(x)
+#define set_sa11xx_uda1341_egpio(x)	set_ipaqsa_egpio(x)
 #else
 #error This driver could serve H3x00 handhelds only!
 #endif
@@ -896,55 +894,67 @@ static int snd_sa11xx_uda1341_resume(struct platform_device *devptr)
 #else
 	//FIXME
 #endif
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* COMFIG_PM */
 
-void snd_sa11xx_uda1341_free(struct snd_card *card)
+void snd_sa11xx_uda1341_free(snd_card_t *card)
 {
-	struct sa11xx_uda1341 *chip = card->private_data;
+	sa11xx_uda1341_t *chip = card->private_data;
 
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_PLAYBACK]);
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_CAPTURE]);
+	sa11xx_uda1341 = NULL;
+	card->private_data = NULL;
+	kfree(chip);
 }
 
-static int __init sa11xx_uda1341_probe(struct platform_device *devptr)
+static int __init sa11xx_uda1341_init(void)
 {
 	int err;
-	struct snd_card *card;
-	struct sa11xx_uda1341 *chip;
+	snd_card_t *card;
+
+	if (!machine_is_h3600() || machine_is_h3100() || machine_is_h3800())
+		return -ENODEV;
 
 	/* register the soundcard */
-	card = snd_card_new(-1, id, THIS_MODULE, sizeof(struct sa11xx_uda1341));
+	card = snd_card_new(-1, id, THIS_MODULE, sizeof(sa11xx_uda1341_t));
 	if (card == NULL)
 		return -ENOMEM;
 
-	chip = card->private_data;
+	sa11xx_uda1341 = kzalloc(sizeof(*sa11xx_uda1341), GFP_KERNEL);
+	if (sa11xx_uda1341 == NULL)
+		return -ENOMEM;	
 	spin_lock_init(&chip->s[0].dma_lock);
 	spin_lock_init(&chip->s[1].dma_lock);
-
+         
+	card->private_data = (void *)sa11xx_uda1341;
 	card->private_free = snd_sa11xx_uda1341_free;
-	chip->card = card;
-	chip->samplerate = AUDIO_RATE_DEFAULT;
+
+	sa11xx_uda1341->card = card;
+	sa11xx_uda1341->samplerate = AUDIO_RATE_DEFAULT;
 
 	// mixer
-	if ((err = snd_chip_uda1341_mixer_new(card, &chip->uda1341)))
+	if ((err = snd_chip_uda1341_mixer_new(sa11xx_uda1341->card, &sa11xx_uda1341->uda1341)))
 		goto nodev;
 
 	// PCM
-	if ((err = snd_card_sa11xx_uda1341_pcm(chip, 0)) < 0)
+	if ((err = snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341, 0)) < 0)
 		goto nodev;
         
+	snd_card_set_generic_pm_callback(card,
+				     snd_sa11xx_uda1341_suspend, snd_sa11_uda1341_resume,
+				     sa11xx_uda1341);
+
 	strcpy(card->driver, "UDA1341");
 	strcpy(card->shortname, "H3600 UDA1341TS");
 	sprintf(card->longname, "Compaq iPAQ H3600 with Philips UDA1341TS");
         
-	snd_card_set_dev(card, &devptr->dev);
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto nodev;
 
 	if ((err = snd_card_register(card)) == 0) {
 		printk( KERN_INFO "iPAQ audio support initialized\n" );
-		platform_set_drvdata(devptr, card);
 		return 0;
 	}
         

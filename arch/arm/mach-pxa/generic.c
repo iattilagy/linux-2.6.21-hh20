@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/pm.h>
 #include <linux/string.h>
+#include <linux/gpiodev.h>
 
 #include <linux/sched.h>
 #include <asm/cnt32_to_63.h>
@@ -42,8 +43,103 @@
 #include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
+#include <asm/arch/serial.h>
 
 #include "generic.h"
+
+/*
+ * Handy function to set GPIO alternate functions.
+ *
+ *	 It can be used to set / clear GPIO bits as well as change their alt-fn,
+ *	 but it can also do one of those things without doing the other.
+ *
+ * Parameters:
+ *
+ * gpio: the pin number (integer between 1 and e.g. 86 for pxa-263)
+ *
+ * mask_ops: (GPIO_MD_MASK_DIR) ORed with Alt-GPIO selection (GPIO_MD_MASK_NR)
+ * 
+ *     set GPIO_MD_MASK_DIR for the gpio pin to be input or output.
+ *     set GPIO_MD_MASK_NR for function (alt-gpio) to be changed.
+ *     set GPIO_MD_MASK_SET for the gpio pin to be set or cleared.
+ *
+ * ops_fn  : the actual operations you want to be carried out.
+ *
+ *     e.g. if you want the gpio pin to be an output, set GPIO_OUT
+ *     (and obviously set mask_ops = GPIO_MD_MASK_DIR).
+ *
+ *     but if you want the gpio pin to be an input, CLEAR GPIO_MD_MASK_DIR in
+ *     the ops_fn argument but *set* the GPIO_MD_MASK_DIR bit in mask_ops
+ *
+ *     e.g. if you want the gpio pin to be high, set GPIO_MD_MASK_SET
+ *     (and obviously set mask_ops = GPIO_MD_HIGH).
+ *
+ *     but if you want the gpio pin to be low, CLEAR GPIO_MD_HIGH in
+ *     the ops_fn argument but *set* the GPIO_MD_MASK_SET bit in mask_ops
+ *
+ *     e.g. if you want the alt-gpio to be set to ALT_FN_1_OUT
+ *     then set ops_fn = GPIO_ALT_FN_1_OUT (and obviously also
+ *     set bits GPIO_MD_MASK_NR in mask_ops.
+ *
+ * to use this function in the same way as the legacy pxa_gpio_mode,
+ * pxa_gpio_op(gpio_ops,
+ *             GPIO_MD_MASK_DIR | GPIO_MD_MASK_NR | GPIO_MD_MASK_SET, 
+ *             gpio_ops)
+ * will do the trick.
+ *
+ */
+
+void pxa_gpio_op(int gpio, int mask_ops, int ops_fn)
+{
+	unsigned long flags;
+	int fn = (ops_fn & GPIO_MD_MASK_FN) >> 8;
+	int gafr;
+
+	gpio = gpio & GPIO_MD_MASK_NR; // mask out gpio number in case someone
+	                               // gets confused between this and the
+	                               // older function, pxa_gpio_mode
+
+	local_irq_save(flags);
+
+	// did you want to raise or lower the state of a GPIO pin? if so,
+	// set any bit in the mask_ops that matches GPIO_MD_MASK_SET.
+
+	if (mask_ops & GPIO_MD_MASK_SET)
+	{
+		if (ops_fn & GPIO_MD_HIGH) 
+			GPSR(gpio) |= GPIO_bit(gpio);
+		else
+			GPCR(gpio) |= GPIO_bit(gpio);
+	}
+
+	// did you want to change the direction (in/out) of a GPIO pin? if so,
+	// set any bit in the mask_ops that matches GPIO_MD_MASK_DIR.
+
+	if (mask_ops & GPIO_MD_MASK_DIR)
+	{
+		if (ops_fn & GPIO_MD_MASK_DIR) {
+			/* if output and active low, then first set the bit to make it inactive */
+			if (ops_fn & GPIO_ACTIVE_LOW)
+				GPSR(gpio) |= GPIO_bit(gpio);
+			GPDR(gpio) |= GPIO_bit(gpio);
+		} else
+			GPDR(gpio) &= ~GPIO_bit(gpio);
+	}
+
+	// did you want to set (or clear) alt-io?  if so, set any bit
+	// in the mask_ops that matches GPIO_MD_MASK_NR e.g OR in the
+	// gpio number itself would do the trick
+	
+	if (mask_ops & GPIO_MD_MASK_NR)
+	{
+		gafr = GAFR(gpio) & ~(0x3 << (((gpio) & 0xf)*2));
+		GAFR(gpio) = gafr |  (fn  << (((gpio) & 0xf)*2));
+	}
+
+	local_irq_restore(flags);
+}
+
+EXPORT_SYMBOL(pxa_gpio_op);
 
 /*
  * This is the PXA2xx sched_clock implementation. This has a resolution
@@ -135,12 +231,33 @@ int pxa_gpio_mode(int gpio_mode)
 
 EXPORT_SYMBOL(pxa_gpio_mode);
 
+#include <linux/gpiodev2.h>
+struct gpio_ops gpio_desc[16];
+
+int gpio_direction_input(unsigned gpio)
+{
+	if (gpio < GPIO_BASE_INCREMENT)
+		return pxa_gpio_mode(gpio | GPIO_IN);
+	return -EINVAL;
+}
+
+int gpio_direction_output(unsigned gpio, int value)
+{
+	if (gpio < GPIO_BASE_INCREMENT)
+		return pxa_gpio_mode(gpio | GPIO_OUT |
+				     (value ? GPIO_DFLT_HIGH : GPIO_DFLT_LOW));
+	gpiodev2_set_value(gpio, value);
+	return -EINVAL;
+}
+
 /*
  * Return GPIO level
  */
 int pxa_gpio_get_value(unsigned gpio)
 {
-	return __gpio_get_value(gpio);
+	if (gpio < GPIO_BASE_INCREMENT)
+		return __gpio_get_value(gpio);
+	return gpiodev2_get_value(gpio);
 }
 
 EXPORT_SYMBOL(pxa_gpio_get_value);
@@ -150,10 +267,25 @@ EXPORT_SYMBOL(pxa_gpio_get_value);
  */
 void pxa_gpio_set_value(unsigned gpio, int value)
 {
-	__gpio_set_value(gpio, value);
+	if (gpio < GPIO_BASE_INCREMENT)
+		__gpio_set_value(gpio, value);
+	else
+		gpiodev2_set_value(gpio, value);
 }
 
 EXPORT_SYMBOL(pxa_gpio_set_value);
+
+/*
+ * 
+ */
+int pxa_gpio_to_irq(unsigned gpio)
+{
+	if (gpio < GPIO_BASE_INCREMENT)
+		return IRQ_GPIO(gpio);
+	return gpiodev2_to_irq(gpio);
+}
+
+EXPORT_SYMBOL(pxa_gpio_to_irq);
 
 /*
  * Routine to safely enable or disable a clock in the CKEN
@@ -265,6 +397,7 @@ void __init pxa_set_udc_info(struct pxa2xx_udc_mach_info *info)
 {
 	memcpy(&pxa_udc_info, info, sizeof *info);
 }
+EXPORT_SYMBOL(pxa_set_udc_info);
 
 static struct resource pxa2xx_udc_resources[] = {
 	[0] = {
@@ -322,6 +455,7 @@ void __init set_pxa_fb_info(struct pxafb_mach_info *info)
 {
 	pxafb_device.dev.platform_data = info;
 }
+EXPORT_SYMBOL(set_pxa_fb_info);
 
 void __init set_pxa_fb_parent(struct device *parent_dev)
 {
@@ -344,6 +478,30 @@ static struct platform_device hwuart_device = {
 	.name		= "pxa2xx-uart",
 	.id		= 3,
 };
+
+void __devinit pxa_set_ffuart_info(struct platform_pxa_serial_funcs *info)
+{
+	ffuart_device.dev.platform_data = info;
+}
+EXPORT_SYMBOL(pxa_set_ffuart_info);
+
+void __devinit pxa_set_btuart_info(struct platform_pxa_serial_funcs *info)
+{
+	btuart_device.dev.platform_data = info;
+}
+EXPORT_SYMBOL(pxa_set_btuart_info);
+
+void __devinit pxa_set_stuart_info(struct platform_pxa_serial_funcs *info)
+{
+	stuart_device.dev.platform_data = info;
+}
+EXPORT_SYMBOL(pxa_set_stuart_info);
+
+void __devinit pxa_set_hwuart_info(struct platform_pxa_serial_funcs *info)
+{
+	hwuart_device.dev.platform_data = info;
+}
+EXPORT_SYMBOL(pxa_set_hwuart_info);
 
 static struct resource i2c_resources[] = {
 	{
@@ -430,6 +588,45 @@ static struct platform_device pxartc_device = {
 	.id		= -1,
 };
 
+
+static int pxa_gpiodev_get_value(struct device *dev, unsigned gpio)
+{
+	printk("%s(%d)\n", __FUNCTION__, gpio);
+	return __gpio_get_value(gpio);
+}
+
+static void pxa_gpiodev_set_value(struct device *dev, unsigned gpio, int value)
+{
+	printk("%s(%d, %d)\n", __FUNCTION__, gpio, value);
+	__gpio_set_value(gpio, value);
+}
+
+static int pxa_gpiodev_to_irq(struct device *dev, unsigned gpio)
+{
+	printk("%s(%d)\n", __FUNCTION__, gpio);
+	return IRQ_GPIO(gpio);
+}
+
+
+struct pxagpio_platform_data {
+	struct gpiodev_ops gpiodev_ops;
+} pxagpio_platform_data = {
+	.gpiodev_ops = {
+		.get = pxa_gpiodev_get_value,
+		.set = pxa_gpiodev_set_value,
+		.to_irq = pxa_gpiodev_to_irq,
+	}
+};
+
+struct platform_device pxagpio_device = {
+	.name		= "pxa2xx-gpio",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &pxagpio_platform_data
+	}
+};
+EXPORT_SYMBOL(pxagpio_device);
+
 static struct platform_device *devices[] __initdata = {
 	&pxamci_device,
 	&udc_device,
@@ -444,6 +641,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&i2s_device,
 	&pxartc_device,
+	&pxagpio_device,
 };
 
 static int __init pxa_init(void)

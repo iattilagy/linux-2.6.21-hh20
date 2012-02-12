@@ -102,6 +102,16 @@ config I2C_ELEKTOR
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-elektor.
 
+config I2C_BIT_SA1100_GPIO
+	bool "SA1100 I2C GPIO adapter"
+	depends on ARCH_SA1100 && I2C_ALGOBIT
+	help
+	  This supports I2C on the SA11x0 processor GPIO pins.  This
+	  shares support with the L3 driver.
+
+	  This support is also available as a module.  If so, the module
+	  will be called l3-bit-sa1100.
+
 config I2C_HYDRA
 	tristate "CHRP Apple Hydra Mac I/O I2C interface"
 	depends on I2C && PCI && PPC_CHRP && EXPERIMENTAL

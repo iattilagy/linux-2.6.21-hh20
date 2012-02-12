@@ -62,12 +62,29 @@ static unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg
 	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	val = *reg_addr;
+
+#ifdef CONFIG_PXA27x
+	// recommended procedure for reg 0x54 (see PXA27x Specification Update: 28007109.pdf sec.: E54)
 	if (reg == AC97_GPIO_STATUS)
+	{
+	    if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_CDONE, 1) <= 0 && !((GSR | gsr_bits) & GSR_CDONE))
+	    {
+		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n", __FUNCTION__, reg, GSR | gsr_bits);
+        	val = -1;
+        	goto out;
+	    }
+	    GSR = GSR_CDONE | GSR_SDONE;
+
+        }
+        else
+#else
+	if (reg == AC97_GPIO_STATUS) 
 		goto out;
-	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1) <= 0 &&
-	    !((GSR | gsr_bits) & GSR_SDONE)) {
-		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n",
-				__FUNCTION__, reg, GSR | gsr_bits);
+#endif
+
+	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1) <= 0 && !((GSR | gsr_bits) & GSR_SDONE))
+	{
+		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n", __FUNCTION__, reg, GSR | gsr_bits);
 		val = -1;
 		goto out;
 	}
@@ -96,11 +113,18 @@ static void pxa2xx_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigne
 	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	*reg_addr = val;
-	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_CDONE, 1) <= 0 &&
-	    !((GSR | gsr_bits) & GSR_CDONE))
-		printk(KERN_ERR "%s: write error (ac97_reg=%d GSR=%#lx)\n",
-				__FUNCTION__, reg, GSR | gsr_bits);
 
+#ifdef CONFIG_PXA27x
+	// recommended procedure for reg 0x54 (see PXA27x Specification Update: 28007109.pdf sec.: E54)
+	if (reg == AC97_GPIO_STATUS){
+		 udelay(50);
+	}
+	else {
+#endif
+	    if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_CDONE, 1) <= 0 && !((GSR | gsr_bits) & GSR_CDONE)) printk(KERN_ERR "%s: write error (ac97_reg=%d GSR=%#lx)\n", __FUNCTION__, reg, GSR | gsr_bits);
+#ifdef CONFIG_PXA27x
+	}
+#endif
 	mutex_unlock(&car_mutex);
 }
 

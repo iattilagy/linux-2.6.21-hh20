@@ -53,6 +53,9 @@ ssize_t led_trigger_store(struct class_device *dev, const char *buf,
 	read_lock(&triggers_list_lock);
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		if (!strcmp(trigger_name, trig->name)) {
+			if (trig->is_led_supported &&
+			    !trig->is_led_supported(led_cdev)) break;
+
 			write_lock(&led_cdev->trigger_lock);
 			led_trigger_set(led_cdev, trig);
 			write_unlock(&led_cdev->trigger_lock);
@@ -85,6 +88,8 @@ ssize_t led_trigger_show(struct class_device *dev, char *buf)
 		if (led_cdev->trigger && !strcmp(led_cdev->trigger->name,
 							trig->name))
 			len += sprintf(buf+len, "[%s] ", trig->name);
+		else if (trig->is_led_supported &&
+			 !trig->is_led_supported(led_cdev)) continue;
 		else
 			len += sprintf(buf+len, "%s ", trig->name);
 	}
@@ -95,7 +100,7 @@ ssize_t led_trigger_show(struct class_device *dev, char *buf)
 	return len;
 }
 
-void led_trigger_event(struct led_trigger *trigger,
+static void led_trigger_default_event(struct led_trigger *trigger,
 			enum led_brightness brightness)
 {
 	struct list_head *entry;
@@ -113,6 +118,15 @@ void led_trigger_event(struct led_trigger *trigger,
 	read_unlock(&trigger->leddev_list_lock);
 }
 
+void led_trigger_event(struct led_trigger *trigger,
+			enum led_brightness brightness)
+{
+	if (!trigger)
+		return;
+
+	trigger->send_event(trigger, brightness);
+}
+
 /* Caller must ensure led_cdev->trigger_lock held */
 void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trigger)
 {
@@ -127,6 +141,7 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trigger)
 			led_cdev->trigger->deactivate(led_cdev);
 		led_set_brightness(led_cdev, LED_OFF);
 	}
+	led_cdev->trigger = trigger;
 	if (trigger) {
 		write_lock_irqsave(&trigger->leddev_list_lock, flags);
 		list_add_tail(&led_cdev->trig_list, &trigger->led_cdevs);
@@ -134,7 +149,6 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trigger)
 		if (trigger->activate)
 			trigger->activate(led_cdev);
 	}
-	led_cdev->trigger = trigger;
 }
 
 void led_trigger_set_default(struct led_classdev *led_cdev)
@@ -158,6 +172,9 @@ int led_trigger_register(struct led_trigger *trigger)
 {
 	struct led_classdev *led_cdev;
 
+	if (!trigger->send_event)
+		trigger->send_event = led_trigger_default_event;
+
 	rwlock_init(&trigger->leddev_list_lock);
 	INIT_LIST_HEAD(&trigger->led_cdevs);
 
@@ -171,7 +188,9 @@ int led_trigger_register(struct led_trigger *trigger)
 	list_for_each_entry(led_cdev, &leds_list, node) {
 		write_lock(&led_cdev->trigger_lock);
 		if (!led_cdev->trigger && led_cdev->default_trigger &&
-			    !strcmp(led_cdev->default_trigger, trigger->name))
+			   !strcmp(led_cdev->default_trigger, trigger->name) &&
+			   (!trigger->is_led_supported ||
+			    trigger->is_led_supported(led_cdev)))
 			led_trigger_set(led_cdev, trigger);
 		write_unlock(&led_cdev->trigger_lock);
 	}

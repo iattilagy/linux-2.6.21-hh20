@@ -61,6 +61,10 @@ static unsigned long __initdata doc_locations[] = {
 	0xff000000,
 #elif defined(CONFIG_MOMENCO_OCELOT_G) || defined (CONFIG_MOMENCO_OCELOT_C)
 	0xff000000,
+#elif defined(CONFIG_MACH_OMAP_H6300)
+        0x00000000,
+#elif defined(CONFIG_MACH_H4000)
+        0x00000000,
 #else
 #warning Unknown architecture for DiskOnChip. No default probe locations defined
 #endif
@@ -113,6 +117,9 @@ module_param(no_autopart, int, 0);
 
 static int show_firmware_partition = 0;
 module_param(show_firmware_partition, int, 0);
+
+static int floor = 0;
+module_param(floor, int, 0);
 
 #ifdef CONFIG_MTD_NAND_DISKONCHIP_BBTWRITE
 static int inftl_bbt_write = 1;
@@ -1483,6 +1490,146 @@ static inline int __init doc2001_init(struct mtd_info *mtd)
 	}
 }
 
+/************************************************************************/
+/***********************   MDoC+ 32MiB interface ************************/
+static void mdocplus32_select_chip(struct mtd_info *mtd, int chip)
+{
+    struct nand_chip *this = mtd->priv;
+    struct doc_priv *doc = this->priv;
+    void __iomem *docptr = doc->virtadr;
+
+    if (debug)
+        printk("select chip (%d)\n", chip);
+
+    if (chip == -1) {
+        /* Disable flash internally */
+        WriteDOC(0, docptr, Mplus_FlashSelect);
+        return;
+    }
+
+	/* Select teh device */
+	WriteDOC(doc->curfloor, docptr, Mplus_DeviceSelect);
+
+    /* Assert ChipEnable and deassert WriteProtect */
+    WriteDOC((DOC_FLASH_CE), docptr, Mplus_FlashSelect);
+    this->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+}
+
+static void mdocplus32_readbuf(struct mtd_info *mtd,
+                u_char *buf, int len)
+{
+    struct nand_chip *this = mtd->priv;
+    struct doc_priv *doc = this->priv;
+    void __iomem *docptr = doc->virtadr;
+    int i;
+    uint16_t *buff  = (uint16_t *) buf;
+    int      size   = len >> 1;
+    int      loc    = DoC_Mil_CDSN_IO;
+
+    if (debug)printk("readbuf of %d bytes: ", len);
+    for (i=0; i < size; i++, loc += 2) {
+        buff[i] = ReadWDOC_(docptr ,loc);
+        if (debug && i < 8)
+            printk("%04x ", buff[i]);
+    }
+    if (debug) printk("\n");
+}
+
+static void mdocplus32_writebuf(struct mtd_info *mtd,
+                 const u_char *buf, int len)
+{
+    struct nand_chip *this = mtd->priv;
+    struct doc_priv *doc = this->priv;
+    void __iomem *docptr = doc->virtadr;
+    int i;
+    uint16_t *buff  = (uint16_t *) buf;
+    int      size   = len >> 1;
+    int      loc    = DoC_Mil_CDSN_IO;
+
+    if (debug)printk("writebuf of %d bytes: ", len);
+    for (i=0; i < size; i++, loc += 2) {
+        WriteWDOC_(buff[i], docptr ,loc);
+        if (debug && i < 8)
+            printk("%02x ", buf[i]);
+    }
+    if (debug) printk("\n");
+}
+
+static int mdocplus32_read_page(struct mtd_info *mtd, struct nand_chip *chip,
+                         		uint8_t *buf)
+{
+	struct nand_chip *this = mtd->priv;
+    struct doc_priv *doc = this->priv;
+    void __iomem *docptr = doc->virtadr;
+    uint8_t *p = buf;
+    uint8_t *oob = chip->oob_poi;
+	int     stat;
+
+	ReadWDOC(docptr, Mplus_ReadPipeInit);
+	ReadWDOC(docptr, Mplus_ReadPipeInit);
+
+	chip->ecc.hwctl(mtd, NAND_ECC_READ);
+    chip->read_buf(mtd, p, 512);
+
+	chip->ecc.hwctl(mtd, NAND_ECC_READSYN);
+    chip->read_buf(mtd, oob, 6);
+    stat = chip->ecc.correct(mtd, p, oob, NULL);
+
+	if (stat == -1)
+   		mtd->ecc_stats.failed++;
+  	else
+    	mtd->ecc_stats.corrected += stat;
+
+  	oob += 6;
+	chip->read_buf(mtd, oob, 4);
+	oob += 4;
+
+	p += 512;
+	chip->ecc.hwctl(mtd, NAND_ECC_READ);
+    chip->read_buf(mtd, p, 512);
+
+	chip->ecc.hwctl(mtd, NAND_ECC_READSYN);
+    chip->read_buf(mtd, oob, 6);
+    stat = chip->ecc.correct(mtd, p, oob, NULL);
+
+    if (stat == -1)
+        mtd->ecc_stats.failed++;
+    else
+        mtd->ecc_stats.corrected += stat;
+	oob += 6;
+
+   	chip->read_buf(mtd, oob, 14);
+	oob += 14;
+	*((uint16_t *) oob) = ReadWDOC_(docptr,DoC_Mplus_LastDataRead);
+
+    return 0;
+}
+
+static inline int __init mdocplus32_init(struct mtd_info *mtd)
+{
+    struct nand_chip *this = mtd->priv;
+    struct doc_priv *doc = this->priv;
+
+    this->read_byte   	= doc2001plus_read_byte;
+    this->write_buf   	= mdocplus32_writebuf;
+    this->read_buf 	  	= mdocplus32_readbuf;
+    this->verify_buf  	= doc2001plus_verifybuf;
+    this->scan_bbt 	  	= inftl_scan_bbt;
+    this->cmd_ctrl 	  	= NULL;
+    this->select_chip 	= mdocplus32_select_chip;
+    this->cmdfunc 	  	= doc2001plus_command;
+    this->ecc.hwctl   	= doc2001plus_enable_hwecc;
+	this->ecc.read_page = mdocplus32_read_page;
+	this->options      |= (NAND_INTERLEAVE | NAND_BUSWIDTH_16);
+
+	doc->curfloor		 = floor;
+    doc->chips_per_floor = 1;
+    mtd->name = "DiskOnChip Millennium Plus";
+
+    return 1;
+}
+/*******************************************************************/
+
 static inline int __init doc2001plus_init(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
@@ -1569,6 +1716,9 @@ static int __init doc_probe(unsigned long physadr)
 		WriteDOC(~tmp, virtadr, Mplus_CtrlConfirm);
 		mdelay(1);
 
+		/* Select the device */
+		WriteDOC(floor, virtadr, Mplus_DeviceSelect);
+
 		ChipID = ReadDOC(virtadr, ChipID);
 
 		switch (ChipID) {
@@ -1576,7 +1726,8 @@ static int __init doc_probe(unsigned long physadr)
 			reg = DoC_Mplus_Toggle;
 			break;
 		case DOC_ChipID_DocMilPlus32:
-			printk(KERN_ERR "DiskOnChip Millennium Plus 32MB is not supported, ignoring.\n");
+			reg = DoC_Mplus_Toggle;
+			break;
 		default:
 			ret = -ENODEV;
 			goto notfound;
@@ -1679,6 +1830,8 @@ static int __init doc_probe(unsigned long physadr)
 		numchips = doc2000_init(mtd);
 	else if (ChipID == DOC_ChipID_DocMilPlus16)
 		numchips = doc2001plus_init(mtd);
+	else if (ChipID == DOC_ChipID_DocMilPlus32)
+		numchips = mdocplus32_init(mtd);
 	else
 		numchips = doc2001_init(mtd);
 

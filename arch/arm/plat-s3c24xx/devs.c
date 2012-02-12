@@ -30,6 +30,8 @@
 
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/udc.h>
+#include <asm/arch/ts.h>
+#include <asm/arch/lcd.h>
 
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
@@ -187,6 +189,22 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 	}
 }
 
+struct platform_device s3c_device_bl = {
+	.name		  = "s3c2410-bl",
+	.id		  = -1,
+};
+
+EXPORT_SYMBOL(s3c_device_bl);
+
+static struct s3c2410_bl_mach_info s3c2410bl_info;
+
+void __init set_s3c2410bl_info(struct s3c2410_bl_mach_info *hard_s3c2410bl_info)
+{
+	memcpy(&s3c2410bl_info,hard_s3c2410bl_info,sizeof(struct s3c2410_bl_mach_info));
+	s3c_device_bl.dev.platform_data = &s3c2410bl_info;
+}
+EXPORT_SYMBOL(set_s3c2410bl_info);
+
 /* NAND Controller */
 
 static struct resource s3c_nand_resource[] = {
@@ -205,6 +223,23 @@ struct platform_device s3c_device_nand = {
 };
 
 EXPORT_SYMBOL(s3c_device_nand);
+
+/* Touchscreen */
+struct platform_device s3c_device_ts = {
+	.name		  = "s3c2410-ts",
+	.id		  = -1,
+};
+
+EXPORT_SYMBOL(s3c_device_ts);
+
+static struct s3c2410_ts_mach_info s3c2410ts_info;
+
+void __init set_s3c2410ts_info(struct s3c2410_ts_mach_info *hard_s3c2410ts_info)
+{
+	memcpy(&s3c2410ts_info,hard_s3c2410ts_info,sizeof(struct s3c2410_ts_mach_info));
+	s3c_device_ts.dev.platform_data = &s3c2410ts_info;
+}
+EXPORT_SYMBOL(set_s3c2410ts_info);
 
 /* USB Device (Gadget)*/
 

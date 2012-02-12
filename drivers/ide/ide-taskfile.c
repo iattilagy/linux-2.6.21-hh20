@@ -289,8 +289,10 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 	/* do the actual data transfer */
 	if (write)
 		taskfile_output_data(drive, buf, SECTOR_WORDS);
-	else
+	else {
 		taskfile_input_data(drive, buf, SECTOR_WORDS);
+		flush_dcache_page(kmap_atomic_to_page(buf));
+	}
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM

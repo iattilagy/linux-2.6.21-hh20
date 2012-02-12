@@ -137,7 +137,6 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
 	extern void pxa_cpu_suspend(unsigned int);
-	extern void pxa_cpu_resume(void);
 
 	if (state == PM_SUSPEND_STANDBY)
 		CKEN = CKEN22_MEMC | CKEN9_OSTIMER | CKEN16_LCD |CKEN0_PWM0;
@@ -155,8 +154,6 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 		pxa_cpu_standby();
 		break;
 	case PM_SUSPEND_MEM:
-		/* set resume return address */
-		PSPR = virt_to_phys(pxa_cpu_resume);
 		pxa_cpu_suspend(PWRMODE_SLEEP);
 		break;
 	}

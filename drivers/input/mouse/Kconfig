@@ -86,6 +86,16 @@ config MOUSE_PC110PAD
 	  To compile this driver as a module, choose M here: the
 	  module will be called pc110pad.
 
+config MOUSE_NAVPOINT
+	tristate "NavPoint touchpad"
+	depends on INPUT && INPUT_MOUSE
+	help
+	  Say Y if you have a PDA with a NavPoint touchpad, like the
+	  iPAQ Hx4700.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called navpoint.
+
 config MOUSE_AMIGA
 	tristate "Amiga mouse"
 	depends on AMIGA

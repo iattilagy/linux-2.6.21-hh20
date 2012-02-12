@@ -665,46 +665,12 @@ void __init s3c24xx_init_irq(void)
 	int irqno;
 	int i;
 
-	irqdbf("s3c2410_init_irq: clearing interrupt status flags\n");
+	irqdbf("s3c2410_init_irq: masking interrupt registers\n");
 
-	/* first, clear all interrupts pending... */
-
-	last = 0;
-	for (i = 0; i < 4; i++) {
-		pend = __raw_readl(S3C24XX_EINTPEND);
-
-		if (pend == 0 || pend == last)
-			break;
-
-		__raw_writel(pend, S3C24XX_EINTPEND);
-		printk("irq: clearing pending ext status %08x\n", (int)pend);
-		last = pend;
-	}
-
-	last = 0;
-	for (i = 0; i < 4; i++) {
-		pend = __raw_readl(S3C2410_INTPND);
-
-		if (pend == 0 || pend == last)
-			break;
-
-		__raw_writel(pend, S3C2410_SRCPND);
-		__raw_writel(pend, S3C2410_INTPND);
-		printk("irq: clearing pending status %08x\n", (int)pend);
-		last = pend;
-	}
-
-	last = 0;
-	for (i = 0; i < 4; i++) {
-		pend = __raw_readl(S3C2410_SUBSRCPND);
-
-		if (pend == 0 || pend == last)
-			break;
-
-		printk("irq: clearing subpending status %08x\n", (int)pend);
-		__raw_writel(pend, S3C2410_SUBSRCPND);
-		last = pend;
-	}
+	__raw_writel(0x0, S3C2410_INTMOD);
+	__raw_writel(0xFFFFF0, S3C24XX_EINTMASK);
+	__raw_writel(0xFFF, S3C2410_INTSUBMSK);
+	__raw_writel(0xFFFFFFFF, S3C2410_INTMSK);
 
 	/* register the main interrupts */
 
@@ -795,6 +761,47 @@ void __init s3c24xx_init_irq(void)
 		set_irq_chip(irqno, &s3c_irq_adc);
 		set_irq_handler(irqno, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
+	}
+
+	irqdbf("s3c2410_init_irq: clearing interrupt status flags\n");
+
+	/* clear all interrupts pending... */
+
+	last = 0;
+	for (i = 0; i < 4; i++) {
+		pend = __raw_readl(S3C24XX_EINTPEND);
+
+		if (pend == 0 || pend == last)
+			break;
+
+		__raw_writel(pend, S3C24XX_EINTPEND);
+		printk("irq: clearing pending ext status %08x\n", (int)pend);
+		last = pend;
+	}
+
+	last = 0;
+	for (i = 0; i < 4; i++) {
+		pend = __raw_readl(S3C2410_SUBSRCPND);
+
+		if (pend == 0 || pend == last)
+			break;
+
+		printk("irq: clearing subpending status %08x\n", (int)pend);
+		__raw_writel(pend, S3C2410_SUBSRCPND);
+		last = pend;
+	}
+
+	last = 0;
+	for (i = 0; i < 4; i++) {
+		pend = __raw_readl(S3C2410_INTPND);
+
+		if (pend == 0 || pend == last)
+			break;
+
+		__raw_writel(pend, S3C2410_SRCPND);
+		__raw_writel(pend, S3C2410_INTPND);
+		printk("irq: clearing pending status %08x\n", (int)pend);
+		last = pend;
 	}
 
 	irqdbf("s3c2410: registered interrupt handlers\n");

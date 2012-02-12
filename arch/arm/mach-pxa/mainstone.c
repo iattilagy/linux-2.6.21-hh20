@@ -42,6 +42,7 @@
 #include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/udc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/ohci.h>
 
@@ -386,6 +387,34 @@ static void mainstone_irda_transceiver_mode(struct device *dev, int mode)
 	local_irq_restore(flags);
 }
 
+static int mainstone_udc_is_connected(void)
+{
+       pr_debug("%s: %d\n", __FUNCTION__,
+               ((MST_MSCRD & MST_MSCRD_USB_CBL) != 0));
+       return (MST_MSCRD & MST_MSCRD_USB_CBL) != 0;
+}
+
+static void mainstone_udc_command(int cmd)
+{
+       switch (cmd) {
+       case PXA2XX_UDC_CMD_CONNECT:
+               MST_MSCWR2 &= ~MST_MSCWR2_nUSBC_SC;
+               pr_debug("%s: connect\n", __FUNCTION__);
+               break;
+       case PXA2XX_UDC_CMD_DISCONNECT:
+               MST_MSCWR2 |= MST_MSCWR2_nUSBC_SC;
+               pr_debug("%s: disconnect\n", __FUNCTION__);
+               break;
+       }
+
+}
+
+static struct pxa2xx_udc_mach_info mainstone_udc_info = {
+        .udc_is_connected = mainstone_udc_is_connected,
+        .udc_command      = mainstone_udc_command,
+};
+
+
 static struct pxaficp_platform_data mainstone_ficp_platform_data = {
 	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE | IR_OFF,
 	.transceiver_mode = mainstone_irda_transceiver_mode,
@@ -457,6 +486,7 @@ static void __init mainstone_init(void)
 	pxa_set_mci_info(&mainstone_mci_platform_data);
 	pxa_set_ficp_info(&mainstone_ficp_platform_data);
 	pxa_set_ohci_info(&mainstone_ohci_platform_data);
+	pxa_set_udc_info(&mainstone_udc_info);
 }
 
 

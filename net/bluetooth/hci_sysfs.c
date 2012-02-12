@@ -356,7 +356,7 @@ int __init bt_sysfs_init(void)
 	return 0;
 }
 
-void bt_sysfs_cleanup(void)
+void __devexit bt_sysfs_cleanup(void)
 {
 	class_destroy(bt_class);
 

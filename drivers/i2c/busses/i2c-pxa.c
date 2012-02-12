@@ -346,6 +346,8 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 {
 	pr_debug("Resetting I2C Controller Unit\n");
 
+	show_state(i2c);
+
 	/* abort any transfer currently under way */
 	i2c_pxa_abort(i2c);
 
@@ -816,7 +818,7 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
 
 static u32 i2c_pxa_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_PROTOCOL_MANGLING;
 }
 
 static const struct i2c_algorithm i2c_pxa_algorithm = {
@@ -976,9 +978,22 @@ static int i2c_pxa_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int i2c_pxa_resume(struct platform_device *dev)
+{
+	i2c_pxa_reset(dev_get_drvdata(&dev->dev));
+	return 0;
+}
+
+#else
+#define i2c_pxa_resume NULL
+#endif
+
+
 static struct platform_driver i2c_pxa_driver = {
 	.probe		= i2c_pxa_probe,
 	.remove		= i2c_pxa_remove,
+	.resume         = i2c_pxa_resume,
 	.driver		= {
 		.name	= "pxa2xx-i2c",
 	},

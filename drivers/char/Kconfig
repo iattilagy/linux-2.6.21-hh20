@@ -810,6 +810,19 @@ config SGI_IP27_RTC
 	  via the file /proc/rtc and its behaviour is set by various ioctls on
 	  /dev/rtc.
 
+config SA1100_RTC
+	tristate "SA11x0/PXA2xx RTC support"
+	depends on ARCH_SA1100 || ARCH_PXA
+	help
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock built into your SA11x0 or
+	  PXA2xx CPU. It reports status information via the file /proc/rtc
+	  and its behaviour is set by various ioctls on /dev/rtc.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sa1100-rtc.
+
 config GEN_RTC
 	tristate "Generic /dev/rtc emulation"
 	depends on RTC!=y && !IA64 && !ARM && !M32R && !SPARC && !FRV
@@ -874,6 +887,18 @@ config R3964
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called n_r3964.
+
+	  If unsure, say N.
+
+config TIHTC
+	tristate "TI Calypso / HTC firmware GSM UART line discipline"
+	help
+	  This driver filters the AT command channel out of the multiplexed
+	  command stream of TI Calypso chipsets with HTC firmware (as used
+	  on HTC Apache, Alpine, Blueangel, and Magician PDA phones).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called n_tihtc.
 
 	  If unsure, say N.
 
@@ -1055,6 +1080,13 @@ config MMTIMER
 	help
 	  The mmtimer device allows direct userspace access to the
 	  Altix system timer.
+
+config H5400_BUZZER
+	tristate "HP iPAQ h5400 buzzer"
+	depends on ARCH_H5400
+	help
+	  The hp iPAQ h5400 and h5500 include a buzzer to allow it to
+	  vibrate. Only useful if you are using one of these handhelds.
 
 source "drivers/char/tpm/Kconfig"
 

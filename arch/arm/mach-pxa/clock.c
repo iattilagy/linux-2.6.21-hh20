@@ -14,15 +14,7 @@
 #include <asm/hardware.h>
 #include <asm/semaphore.h>
 
-struct clk {
-	struct list_head	node;
-	unsigned long		rate;
-	struct module		*owner;
-	const char		*name;
-	unsigned int		enabled;
-	void			(*enable)(void);
-	void			(*disable)(void);
-};
+#include <asm/arch/clock.h>
 
 static LIST_HEAD(clocks);
 static DECLARE_MUTEX(clocks_sem);
@@ -57,7 +49,7 @@ int clk_enable(struct clk *clk)
 
 	spin_lock_irqsave(&clocks_lock, flags);
 	if (clk->enabled++ == 0)
-		clk->enable();
+		clk->enable(clk);
 	spin_unlock_irqrestore(&clocks_lock, flags);
 	return 0;
 }
@@ -71,24 +63,46 @@ void clk_disable(struct clk *clk)
 
 	spin_lock_irqsave(&clocks_lock, flags);
 	if (--clk->enabled == 0)
-		clk->disable();
+		clk->disable(clk);
 	spin_unlock_irqrestore(&clocks_lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
+	if (clk->rate != 0)
+		return clk->rate;
+
+	while (clk->parent != NULL && clk->rate == 0)
+		clk = clk->parent;
+
 	return clk->rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
 
+struct clk *clk_get_parent(struct clk *clk)
+{
+	return clk->parent;
+}
+EXPORT_SYMBOL(clk_get_parent);
 
-static void clk_gpio27_enable(void)
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	down(&clocks_sem);
+	clk->parent = parent;
+	up(&clocks_sem);
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_set_parent);
+
+
+static void clk_gpio27_enable(struct clk *clk)
 {
 	pxa_gpio_mode(GPIO11_3_6MHz_MD);
 }
 
-static void clk_gpio27_disable(void)
+static void clk_gpio27_disable(struct clk *clk)
 {
 }
 

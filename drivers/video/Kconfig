@@ -448,6 +448,8 @@ config FB_CT65550
 	  This is the frame buffer device driver for the Chips & Technologies
 	  65550 graphics chip in PowerBooks.
 
+source drivers/video/imageon/Kconfig
+
 config FB_ASILIANT
 	bool "Asiliant (Chips) 69000 display support"
 	depends on (FB = y) && PCI
@@ -673,6 +675,13 @@ config FB_S1D13XXX
 	  Support for S1D13XXX framebuffer device family (currently only
 	  working with S1D13806). Product specs at
 	  <http://www.erd.epson.com/vdc/html/legacy_13xxx.htm>
+
+config FB_EPSON1356
+	bool "Epson 1356 framebuffer support"
+	depends on FB && ARM && SA1100_JORNADA720
+	help
+	  Support for the Epson 1356 framebuffer used on the HP Jornada
+	  720 handheld PC
 
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
@@ -1534,12 +1543,13 @@ config FB_MBX_DEBUG
 
 config FB_W100
 	tristate "W100 frame buffer support"
-	depends on FB && PXA_SHARPSL
+	depends on FB && (PXA_SHARPSL || HX4700_LCD || ARCH_ESERIES || MACH_BLUEANGEL_LCD || MACH_HIMALAYA_LCD)
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
 	---help---
-	  Frame buffer driver for the w100 as found on the Sharp SL-Cxx series.
+	  Frame buffer driver for the w100 as found on the Sharp SL-Cxx series
+	  and the hp hx47xx series.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
@@ -1547,6 +1557,37 @@ config FB_W100
 	  say M here and read <file:Documentation/modules.txt>.
 
 	  If unsure, say N.
+
+config FB_MQ1100
+	tristate "MQ1100/32/68/78/88 framebuffer support"
+	depends on FB && SOC_MQ11XX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is a framebuffer device for the MediaQ 1100/32/68/78/88
+	  LCD controllers (http://www.mediaq.com) found in some PDAs
+	  (these include: iPAQ 5400, Axim X5, iPAQ 221x).
+
+	  This driver handles only the LCD controller apect of the MediaQ;
+	  other functions are handled in respective drivers.
+	  See <http://www.linux-fbdev.org/> for information
+	  on framebuffer devices.
+
+config FB_MQ200
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	bool "MQ200 framebuffer support"
+	depends on SA1100_SIMPAD
+
+config FB_MQ200_LCD
+	bool "MQ200 LCD class implemetation"
+	depends on SA1100_SIMPAD && LCD_DEVICE
+
+config FB_MQ200_BACKLIGHT
+	bool "MQ200 Backlight class implementation"
+	depends on SA1100_SIMPAD && BACKLIGHT_DEVICE
 
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
@@ -1652,6 +1693,20 @@ config FB_VIRTUAL
 	  To compile this driver as a module, choose M here: the
 	  module will be called vfb. In order to load it, you must use
 	  the vfb_enable=1 option.
+
+	  If unsure, say N.
+
+config FB_VSFB
+	tristate "Very Simple FrameBuffer (vsfb) driver"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  This is a very simple framebuffer device intended for either
+	  testing devices for which no proper video driver exists or for
+	  use on very simple framebuffers that have been set up by 'bios like'
+	  bootloaders that reserve a block of linear memory for a framebuffer.
 
 	  If unsure, say N.
 

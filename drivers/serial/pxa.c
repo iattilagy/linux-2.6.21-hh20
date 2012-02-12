@@ -47,6 +47,7 @@
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/serial.h>
 
 
 struct uart_pxa_port {
@@ -58,6 +59,13 @@ struct uart_pxa_port {
 	unsigned int		cken;
 	char			*name;
 };
+
+#define IS_METHOD(dev, method) (dev && (dev)->platform_data && ((struct platform_pxa_serial_funcs *)(dev)->platform_data)->method)
+#define METHOD_CALL(dev, method) \
+		((struct platform_pxa_serial_funcs *)(dev)->platform_data)->method()
+#define SAFE_METHOD_CALL(dev, method, args...) \
+	if (IS_METHOD(dev, method)) \
+		((struct platform_pxa_serial_funcs *)(dev)->platform_data)->method(args)
 
 static inline unsigned int serial_in(struct uart_pxa_port *up, int offset)
 {
@@ -86,6 +94,7 @@ static void serial_pxa_stop_tx(struct uart_port *port)
 	if (up->ier & UART_IER_THRI) {
 		up->ier &= ~UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
+		SAFE_METHOD_CALL(port->dev, set_txrx, (up->ier & UART_IER_RLSI) ? PXA_SERIAL_RX : 0);
 	}
 }
 
@@ -96,6 +105,7 @@ static void serial_pxa_stop_rx(struct uart_port *port)
 	up->ier &= ~UART_IER_RLSI;
 	up->port.read_status_mask &= ~UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
+	SAFE_METHOD_CALL(port->dev, set_txrx, (up->ier & UART_IER_THRI) ? PXA_SERIAL_TX : 0);
 }
 
 static inline void receive_chars(struct uart_pxa_port *up, int *status)
@@ -201,6 +211,7 @@ static void serial_pxa_start_tx(struct uart_port *port)
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 
 	if (!(up->ier & UART_IER_THRI)) {
+		SAFE_METHOD_CALL(port->dev, set_txrx, ((up->ier & UART_IER_RLSI) ? PXA_SERIAL_RX : 0) | PXA_SERIAL_TX);
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
 	}
@@ -236,11 +247,23 @@ static inline irqreturn_t serial_pxa_irq(int irq, void *dev_id)
 	unsigned int iir, lsr;
 
 	iir = serial_in(up, UART_IIR);
-	if (iir & UART_IIR_NO_INT)
-		return IRQ_NONE;
 	lsr = serial_in(up, UART_LSR);
+
+	/*
+	 * The PXA Developer's Manual says this can happen:
+	 * If additional data is received before a receiver time-out
+	 * interrupt is serviced, the interrupt is de-asserted.
+	 * Check if data is ready in the FIFO and receive data
+	 * regardless of the interrupt status. If no data, and
+	 * no interrupt pending, then give notice
+	 * (return IRQ_NONE causes interface to stop working)
+	 */
 	if (lsr & UART_LSR_DR)
 		receive_chars(up, &lsr);
+	else if (iir & UART_IIR_NO_INT) {
+		printk( KERN_NOTICE "serial_pxa_irq says no interrupt, ignoring!\n" );
+		// return IRQ_NONE;
+	}
 	check_modem_status(up);
 	if (lsr & UART_LSR_THRE)
 		transmit_chars(up);
@@ -340,11 +363,15 @@ out:
 }
 #endif
 
+		
 static int serial_pxa_startup(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 	unsigned long flags;
 	int retval;
+
+	/* Perform platform-specific port initialization, if needed. */
+	SAFE_METHOD_CALL(port->dev, configure, PXA_UART_CFG_PRE_STARTUP);
 
 	if (port->line == 3) /* HWUART */
 		up->mcr |= UART_MCR_AFE;
@@ -401,6 +428,12 @@ static int serial_pxa_startup(struct uart_port *port)
 	(void) serial_in(up, UART_IIR);
 	(void) serial_in(up, UART_MSR);
 
+	/*
+	 * Perform platform-specific port initialization if needed
+	 */
+	SAFE_METHOD_CALL(port->dev, configure, PXA_UART_CFG_POST_STARTUP);
+	SAFE_METHOD_CALL(port->dev, set_txrx, PXA_SERIAL_RX);
+
 	return 0;
 }
 
@@ -408,6 +441,8 @@ static void serial_pxa_shutdown(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 	unsigned long flags;
+
+	SAFE_METHOD_CALL(port->dev, configure, PXA_UART_CFG_PRE_SHUTDOWN);
 
 	free_irq(up->port.irq, up);
 
@@ -430,6 +465,8 @@ static void serial_pxa_shutdown(struct uart_port *port)
 				  UART_FCR_CLEAR_RCVR |
 				  UART_FCR_CLEAR_XMIT);
 	serial_out(up, UART_FCR, 0);
+
+	SAFE_METHOD_CALL(port->dev, configure, PXA_UART_CFG_POST_SHUTDOWN);
 }
 
 static void
@@ -634,12 +671,21 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_pxa_port *up = &serial_pxa_ports[co->index];
 	unsigned int ier;
+	int save_txrx = 0;
 
 	/*
 	 *	First save the IER then disable the interrupts
 	 */
 	ier = serial_in(up, UART_IER);
 	serial_out(up, UART_IER, UART_IER_UUE);
+
+	/*
+	 *	Save the old transceiver mode and switch to TX
+	 */
+	if (IS_METHOD(up->port.dev, set_txrx)) {
+		save_txrx = METHOD_CALL(up->port.dev, get_txrx);
+		SAFE_METHOD_CALL(up->port.dev, set_txrx, PXA_SERIAL_TX);
+	}
 
 	uart_console_write(&up->port, s, count, serial_pxa_console_putchar);
 
@@ -648,6 +694,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	 *	and restore the IER
 	 */
 	wait_for_xmitr(up);
+	SAFE_METHOD_CALL(up->port.dev, set_txrx, save_txrx);
 	serial_out(up, UART_IER, ier);
 }
 
@@ -788,8 +835,10 @@ static int serial_pxa_suspend(struct platform_device *dev, pm_message_t state)
 {
         struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
-        if (sport)
+        if (sport) {
+		SAFE_METHOD_CALL(sport->port.dev, suspend, dev, state);
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
+	}
 
         return 0;
 }
@@ -798,8 +847,10 @@ static int serial_pxa_resume(struct platform_device *dev)
 {
         struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
-        if (sport)
+        if (sport) {
                 uart_resume_port(&serial_pxa_reg, &sport->port);
+		SAFE_METHOD_CALL(sport->port.dev, resume, dev);
+	}
 
         return 0;
 }

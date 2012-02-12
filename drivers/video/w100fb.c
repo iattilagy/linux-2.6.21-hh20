@@ -7,6 +7,7 @@
  * Copyright (C) 2004-2006 Richard Purdie
  * Copyright (c) 2005 Ian Molton
  * Copyright (c) 2006 Alberto Mardegan
+ * Copyright (c) 2006 Manuel Teira
  *
  * Rewritten for 2.6 by Richard Purdie <rpurdie@rpsys.net>
  *
@@ -17,6 +18,8 @@
  *
  * Hardware acceleration support by Alberto Mardegan
  * <mardy@users.sourceforge.net>
+ * Extended hardware acceleration support by Manuel Teira
+ * <manuel.teira@telefonica.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,6 +27,7 @@
  *
  */
 
+#include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -66,6 +70,12 @@ struct w100_pll_info *w100_get_xtal_table(unsigned int freq);
 static void *remapped_base;
 static void *remapped_regs;
 static void *remapped_fbuf;
+
+/* Default value for dp_gui_master_cntl */
+static u32 def_gmc_value = 0;
+
+/* Flag to avoid innecessary syncing */
+static u8 last_op_hw = 0;
 
 #define REMAPPED_FB_LEN   0x15ffff
 
@@ -166,6 +176,36 @@ static ssize_t fastpllclk_store(struct device *dev, struct device_attribute *att
 
 static DEVICE_ATTR(fastpllclk, 0644, fastpllclk_show, fastpllclk_store);
 
+static ssize_t accel_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n",(info->flags & FBINFO_HWACCEL_DISABLED) ?
+		       0 : 1);
+}
+
+static ssize_t accel_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int accel;
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct w100fb_par *par = info->par;
+
+
+	accel = simple_strtoul(buf, NULL, 10);
+
+	if (accel == 0 && !(info->flags & FBINFO_HWACCEL_DISABLED)) {
+		info->flags |= FBINFO_HWACCEL_DISABLED;
+	} else if (info->flags & FBINFO_HWACCEL_DISABLED) {
+		w100_init_graphic_engine(par);
+		info->flags &= ~FBINFO_HWACCEL_DISABLED;
+		last_op_hw = 0;
+	}
+	return count;
+}
+
+static DEVICE_ATTR(accel, 0644, accel_show, accel_store);
+
+
 /*
  * Some touchscreens need hsync information from the video driver to
  * function correctly. We export it here.
@@ -185,7 +225,7 @@ EXPORT_SYMBOL(w100fb_get_hsynclen);
 
 static void w100fb_clear_screen(struct w100fb_par *par)
 {
-	memset_io(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), 0, (par->xres * par->yres * BITS_PER_PIXEL/8));
+	memset(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), 0, (par->xres * par->yres * BITS_PER_PIXEL/8));
 }
 
 
@@ -235,16 +275,16 @@ static int w100fb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_HSYNC_SUSPEND:  /* VESA blank (hsync off) */
  	case FB_BLANK_POWERDOWN:      /* Poweroff */
   		if (par->blanked == 0) {
-			if(tg && tg->suspend)
-				tg->suspend(par);
+			if(tg && tg->blank)
+				tg->blank(par);
 			par->blanked = 1;
   		}
   		break;
 
  	case FB_BLANK_UNBLANK: /* Unblanking */
   		if (par->blanked != 0) {
-			if(tg && tg->resume)
-				tg->resume(par);
+			if(tg && tg->unblank)
+				tg->unblank(par);
 			par->blanked = 0;
   		}
   		break;
@@ -272,6 +312,9 @@ static int w100fb_sync(struct fb_info *info)
 {
 	union rbbm_status_u status;
 	int i;
+
+        if (!last_op_hw) 
+            return 0;
 
 	for (i = 0; i < 2000000; i++) {
 		status.val = readl(remapped_regs + mmRBBM_STATUS);
@@ -318,8 +361,8 @@ static void w100_init_graphic_engine(struct w100fb_par *par)
 	gmc.f.gmc_src_clipping = 1;
 	gmc.f.gmc_dst_clipping = 1;
 	gmc.f.gmc_brush_datatype = GMC_BRUSH_NONE;
-	gmc.f.gmc_dst_datatype = 3; /* from DstType_16Bpp_444 */
-	gmc.f.gmc_src_datatype = SRC_DATATYPE_EQU_DST;
+	gmc.f.gmc_dst_datatype = DP_DST_16BPP_1555;
+	gmc.f.gmc_src_datatype = DP_SRC_COLOR_SAME_AS_DST;
 	gmc.f.gmc_byte_pix_order = 1;
 	gmc.f.gmc_default_sel = 0;
 	gmc.f.gmc_rop3 = ROP3_SRCCOPY;
@@ -327,7 +370,8 @@ static void w100_init_graphic_engine(struct w100fb_par *par)
 	gmc.f.gmc_clr_cmp_fcn_dis = 1;
 	gmc.f.gmc_wr_msk_dis = 1;
 	gmc.f.gmc_dp_op = DP_OP_ROP;
-	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
+        def_gmc_value = gmc.val;
+	writel(def_gmc_value, remapped_regs + mmDP_GUI_MASTER_CNTL);
 
 	dp_datatype.val = dp_mix.val = 0;
 	dp_datatype.f.dp_dst_datatype = gmc.f.gmc_dst_datatype;
@@ -355,20 +399,22 @@ static void w100fb_fillrect(struct fb_info *info,
 		return;
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
 		cfb_fillrect(info, rect);
+		last_op_hw = 0;
 		return;
 	}
 
-	gmc.val = readl(remapped_regs + mmDP_GUI_MASTER_CNTL);
-	gmc.f.gmc_rop3 = ROP3_PATCOPY;
+	gmc.val = def_gmc_value;
 	gmc.f.gmc_brush_datatype = GMC_BRUSH_SOLID_COLOR;
-	w100_fifo_wait(2);
+	gmc.f.gmc_rop3 = ROP3_PATCOPY;
+
+	w100_fifo_wait(4);
 	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
 	writel(rect->color, remapped_regs + mmDP_BRUSH_FRGD_CLR);
-
-	w100_fifo_wait(2);
-	writel((rect->dy << 16) | (rect->dx & 0xffff), remapped_regs + mmDST_Y_X);
+	writel((rect->dy << 16) | (rect->dx & 0xffff),
+	       remapped_regs + mmDST_Y_X);
 	writel((rect->width << 16) | (rect->height & 0xffff),
-	       remapped_regs + mmDST_WIDTH_HEIGHT);
+		remapped_regs + mmDST_WIDTH_HEIGHT);
+	last_op_hw = 1;
 }
 
 
@@ -383,19 +429,121 @@ static void w100fb_copyarea(struct fb_info *info,
 		return;
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
 		cfb_copyarea(info, area);
+                last_op_hw = 0;
 		return;
 	}
 
-	gmc.val = readl(remapped_regs + mmDP_GUI_MASTER_CNTL);
+	gmc.val = def_gmc_value;
 	gmc.f.gmc_rop3 = ROP3_SRCCOPY;
 	gmc.f.gmc_brush_datatype = GMC_BRUSH_NONE;
-	w100_fifo_wait(1);
-	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
 
-	w100_fifo_wait(3);
+	w100_fifo_wait(4);
+	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
 	writel((sy << 16) | (sx & 0xffff), remapped_regs + mmSRC_Y_X);
 	writel((dy << 16) | (dx & 0xffff), remapped_regs + mmDST_Y_X);
 	writel((w << 16) | (h & 0xffff), remapped_regs + mmDST_WIDTH_HEIGHT);
+	last_op_hw = 1;
+}
+
+#define OUT(value, offset) writel(value, remapped_regs + offset)
+
+static void w100_hostdata(u32 width, u32 height, u32 depth, u32 *src)
+{
+	u32 left = (((width + 7) / 8) * height * depth + 3) / 4;
+
+	while (left) {
+		if (left <= 8) {
+			w100_fifo_wait(left);
+			switch (left) {
+			case 8: OUT(*src++, mmHOST_DATA1); 
+			case 7: OUT(*src++, mmHOST_DATA2);
+			case 6: OUT(*src++, mmHOST_DATA3);
+			case 5: OUT(*src++, mmHOST_DATA4);
+			case 4: OUT(*src++, mmHOST_DATA5);
+			case 3: OUT(*src++, mmHOST_DATA6);
+			case 2: OUT(*src++, mmHOST_DATA7);
+			case 1: OUT(*src++, mmHOST_DATA_LAST);
+			}
+			left = 0;
+		} else {
+			w100_fifo_wait(8);
+			OUT(*src++, mmHOST_DATA0);
+			OUT(*src++, mmHOST_DATA1);
+			OUT(*src++, mmHOST_DATA2);
+			OUT(*src++, mmHOST_DATA3);
+			OUT(*src++, mmHOST_DATA4);
+			OUT(*src++, mmHOST_DATA5);
+			OUT(*src++, mmHOST_DATA6);
+			OUT(*src++, mmHOST_DATA7);
+			left -= 8;
+		}
+	}
+}
+
+static void w100fb_imageblit(struct fb_info *info,
+                             const struct fb_image *image)
+{
+	struct w100fb_par *par = info->par;
+	union dp_gui_master_cntl_u gmc;
+	u32 fgcolor, bgcolor;
+
+	if (info->state != FBINFO_STATE_RUNNING)
+		return;
+
+	if (info->flags & FBINFO_HWACCEL_DISABLED) {
+		cfb_imageblit(info, image);
+                last_op_hw = 0;
+		return;
+	}
+
+	if (image->depth == 1) {
+		if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+		    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
+			fgcolor = 
+				((u32*)(info->pseudo_palette))[image->fg_color];
+			bgcolor = 
+				((u32*)(info->pseudo_palette))[image->bg_color];
+		} else {
+			fgcolor = image->fg_color;
+			bgcolor = image->bg_color;
+		}
+	}
+
+	gmc.val = def_gmc_value;
+	gmc.f.gmc_rop3 = ROP3_SRCCOPY;
+	gmc.f.gmc_dst_datatype = DP_DST_16BPP_1555;
+	gmc.f.gmc_dp_src_source = DP_SRC_HOSTDATA_BYTE;
+	switch (image->depth) {
+	case 1:
+		gmc.f.gmc_src_datatype = DP_SRC_1BPP_OPA;
+		gmc.f.gmc_byte_pix_order = DP_PIX_ORDER_MSB2LSB;
+		break;
+	case 16:
+		gmc.f.gmc_src_datatype = DP_SRC_COLOR_SAME_AS_DST;
+		gmc.f.gmc_byte_pix_order = DP_PIX_ORDER_LSB2MSB;
+		break;
+	default:
+		cfb_imageblit(info, image);
+		last_op_hw = 0;
+		return;
+	}
+
+	if (image->depth == 1) {
+		w100_fifo_wait(5);
+		writel(fgcolor, remapped_regs + mmDP_SRC_FRGD_CLR);
+		writel(bgcolor, remapped_regs + mmDP_SRC_BKGD_CLR);
+	} else {
+		w100_fifo_wait(3);
+	}
+	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
+	writel((image->dy << 16) | (image->dx & 0xffff), 
+	       remapped_regs + mmDST_Y_X);
+	writel((image->width << 16) | (image->height & 0xffff), 
+	       remapped_regs + mmDST_WIDTH_HEIGHT);
+	
+	w100_hostdata(image->width, image->height, image->depth, 
+		      (u32*)image->data);
+	last_op_hw = 1;
 }
 
 
@@ -540,6 +688,7 @@ static int w100fb_set_par(struct fb_info *info)
 /*
  *  Frame buffer operations
  */
+
 static struct fb_ops w100fb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_check_var = w100fb_check_var,
@@ -548,7 +697,7 @@ static struct fb_ops w100fb_ops = {
 	.fb_blank     = w100fb_blank,
 	.fb_fillrect  = w100fb_fillrect,
 	.fb_copyarea  = w100fb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_imageblit = w100fb_imageblit,
 	.fb_sync      = w100fb_sync,
 };
 
@@ -561,14 +710,14 @@ static void w100fb_save_vidmem(struct w100fb_par *par)
 		memsize=par->mach->mem->size;
 		par->saved_extmem = vmalloc(memsize);
 		if (par->saved_extmem)
-			memcpy_fromio(par->saved_extmem, remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), memsize);
+			memcpy(par->saved_extmem, remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), memsize);
 	}
 	memsize=MEM_INT_SIZE;
 	par->saved_intmem = vmalloc(memsize);
 	if (par->saved_intmem && par->extmem_active)
-		memcpy_fromio(par->saved_intmem, remapped_fbuf + (W100_FB_BASE-MEM_INT_BASE_VALUE), memsize);
+		memcpy(par->saved_intmem, remapped_fbuf + (W100_FB_BASE-MEM_INT_BASE_VALUE), memsize);
 	else if (par->saved_intmem)
-		memcpy_fromio(par->saved_intmem, remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), memsize);
+		memcpy(par->saved_intmem, remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), memsize);
 }
 
 static void w100fb_restore_vidmem(struct w100fb_par *par)
@@ -577,15 +726,15 @@ static void w100fb_restore_vidmem(struct w100fb_par *par)
 
 	if (par->extmem_active && par->saved_extmem) {
 		memsize=par->mach->mem->size;
-		memcpy_toio(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), par->saved_extmem, memsize);
+		memcpy(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), par->saved_extmem, memsize);
 		vfree(par->saved_extmem);
 	}
 	if (par->saved_intmem) {
 		memsize=MEM_INT_SIZE;
 		if (par->extmem_active)
-			memcpy_toio(remapped_fbuf + (W100_FB_BASE-MEM_INT_BASE_VALUE), par->saved_intmem, memsize);
+			memcpy(remapped_fbuf + (W100_FB_BASE-MEM_INT_BASE_VALUE), par->saved_intmem, memsize);
 		else
-			memcpy_toio(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), par->saved_intmem, memsize);
+			memcpy(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), par->saved_intmem, memsize);
 		vfree(par->saved_intmem);
 	}
 }
@@ -596,11 +745,19 @@ static int w100fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct w100fb_par *par=info->par;
 	struct w100_tg_info *tg = par->mach->tg;
 
+	acquire_console_sem();
+
+	fb_set_suspend(info, 1);
+
+	w100fb_sync(info);
+
 	w100fb_save_vidmem(par);
 	if(tg && tg->suspend)
 		tg->suspend(par);
 	w100_suspend(W100_SUSPEND_ALL);
 	par->blanked = 1;
+
+	release_console_sem();
 
 	return 0;
 }
@@ -611,12 +768,18 @@ static int w100fb_resume(struct platform_device *dev)
 	struct w100fb_par *par=info->par;
 	struct w100_tg_info *tg = par->mach->tg;
 
+	acquire_console_sem();
+
 	w100_hw_init(par);
 	w100fb_activate_var(par);
 	w100fb_restore_vidmem(par);
 	if(tg && tg->resume)
 		tg->resume(par);
 	par->blanked = 0;
+
+	fb_set_suspend(info, 0);
+
+	release_console_sem();
 
 	return 0;
 }
@@ -697,7 +860,7 @@ int __init w100fb_probe(struct platform_device *pdev)
 
 	info->fbops = &w100fb_ops;
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
-		FBINFO_HWACCEL_FILLRECT;
+		FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_DISABLED;
 	info->node = -1;
 	info->screen_base = remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE);
 	info->screen_size = REMAPPED_FB_LEN;
@@ -719,10 +882,12 @@ int __init w100fb_probe(struct platform_device *pdev)
 	if(inf->init_mode & INIT_MODE_ROTATED) {
 		info->var.xres = par->mode->yres;
 		info->var.yres = par->mode->xres;
+		info->var.rotate = FB_ROTATE_CW;
 	}
 	else {
 		info->var.xres = par->mode->xres;
 		info->var.yres = par->mode->yres;
+		info->var.rotate = FB_ROTATE_UR;
 	}
 
 	if(inf->init_mode &= INIT_MODE_FLIPPED)
@@ -757,6 +922,7 @@ int __init w100fb_probe(struct platform_device *pdev)
 	device_create_file(&pdev->dev, &dev_attr_reg_read);
 	device_create_file(&pdev->dev, &dev_attr_reg_write);
 	device_create_file(&pdev->dev, &dev_attr_flip);
+	device_create_file(&pdev->dev, &dev_attr_accel);
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node, info->fix.id);
 	return 0;
@@ -784,6 +950,7 @@ static int w100fb_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_reg_read);
 	device_remove_file(&pdev->dev, &dev_attr_reg_write);
 	device_remove_file(&pdev->dev, &dev_attr_flip);
+	device_remove_file(&pdev->dev, &dev_attr_accel);
 
 	unregister_framebuffer(info);
 
@@ -851,12 +1018,34 @@ unsigned long w100fb_gpio_read(int port)
 void w100fb_gpio_write(int port, unsigned long value)
 {
 	if (port==W100_GPIO_PORT_A)
-		value = writel(value, remapped_regs + mmGPIO_DATA);
+		writel(value, remapped_regs + mmGPIO_DATA);
 	else
-		value = writel(value, remapped_regs + mmGPIO_DATA2);
+		writel(value, remapped_regs + mmGPIO_DATA2);
 }
 EXPORT_SYMBOL(w100fb_gpio_read);
 EXPORT_SYMBOL(w100fb_gpio_write);
+
+unsigned long w100fb_gpcntl_read(int port)
+{
+	unsigned long value;
+
+	if (port==W100_GPIO_PORT_A)
+		value = readl(remapped_regs + mmGPIO_CNTL1);
+	else
+		value = readl(remapped_regs + mmGPIO_CNTL3);
+
+	return value;
+}
+
+void w100fb_gpcntl_write(int port, unsigned long value)
+{
+	if (port==W100_GPIO_PORT_A)
+		writel(value, remapped_regs + mmGPIO_CNTL1);
+	else
+		writel(value, remapped_regs + mmGPIO_CNTL3);
+}
+EXPORT_SYMBOL(w100fb_gpcntl_read);
+EXPORT_SYMBOL(w100fb_gpcntl_write);
 
 /*
  * Initialization of critical w100 hardware
@@ -987,18 +1176,51 @@ static struct w100_pll_info xtal_14318000[] = {
 	/*freq     M   N_int    N_fac  tfgoal  lock_time */
 	{ 40,      4,   13,      0,     0xe0,        80}, /* tfgoal guessed */
 	{ 50,      1,   6,       0,     0xe0,	     64}, /*  50.05 MHz */
-	{ 57,      2,   11,      0,     0xe0,        53}, /* tfgoal guessed */
+	{ 57,      2,   11,      0,     0xe0,        53}, /*  57.272 MHz tfgoal guessed */
 	{ 75,      0,   4,       3,     0xe0,	     43}, /*  75.08 MHz */
 	{100,      0,   6,       0,     0xe0,        32}, /* 100.10 MHz */
 	{  0,      0,   0,       0,        0,         0},
 };
 
 /* 16MHz Crystal PLL Table */
+// Commented out values are untested, and often incorrect. these come from docs
+// Be sure to check they actually generate the right frequencies (eg. the
+// commented out 100 MHz entry appears to generate 97MHz
 static struct w100_pll_info xtal_16000000[] = {
 	/*freq     M   N_int    N_fac  tfgoal  lock_time */
-	{ 72,      1,   8,       0,     0xe0,        48}, /* tfgoal guessed */
-	{ 95,      1,   10,      7,     0xe0,        38}, /* tfgoal guessed */
-	{ 96,      1,   11,      0,     0xe0,        36}, /* tfgoal guessed */
+//	{ 30,      1,    2,      7,     0xe0,       119}, /*  36.00 MHz */
+//	{ 35,      1,    3,      2,     0xe0,       102}, /*  36.00 MHz */
+//	{ 40,      1,    4,      0,     0xe0,        90}, /*  40.00 MHz */
+//	{ 45,      3,   10,      3,     0xe0,        80}, /*  45.00 MHz */
+	{ 45,      4,   13,      0,     0xe0,        80}, /* 44.8MHz tfgoal guessed */
+//	{ 48,      1,    5,      0,     0xe0,        75}, /*  48.00 MHz */
+//	{ 50,      3,   11,      1,     0xe0,        72}, /*  50.29 MHz */
+//	{ 55,      3,   12,      7,     0xe0,        65}, /*  55.00 MHz */
+//	{ 60,      0,    2,      7,     0xe0,        60}, /*  60.00 MHz */
+//	{ 65,      1,    7,      3,     0xe0,        55}, /*  64.00 MHz */
+//	{ 70,      1,    7,      7,     0xe0,        51}, /*  69.28 MHz */
+	{ 72,      1,    8,      0,     0xe0,        48}, /* tfgoal guessed */
+//	{ 75,      1,    8,      2,     0xe0,        48}, /*  74.67 MHz */
+	{ 80,      1,    9,      0,     0xe0,        13}, /*  80.00 MHz */
+//	{ 85,      1,    9,      6,     0xe0,        42}, /*  85.33 MHz */
+//	{ 90,      0,    4,      6,     0xe0,        40}, /*  89.60 MHz */
+	{ 95,      1,   10,      7,     0xe0,        38}, /*  96.00 MHz */
+//	{ 96,      1,   11,      0,     0xe0,        36}, /* tfgoal guessed */
+//	{100,      1,   11,      1,     0xe0,        36}, /* 100.00 MHz */
+	{100,      1,   11,      4,     0xe0,        36}, /* tfgoal guessed */
+//	{105,      1,   12,      7,     0xe0,        34}, /* 100.00 MHz */
+//	{110,      1,   12,      7,     0xe0,        33}, /* 112.00 MHz */
+//	{115,      1,   13,      2,     0xe0,        31}, /* 112.00 MHz */
+//	{120,      1,   14,      0,     0xe0,        30}, /* 120.00 MHz */
+//	{125,      1,   14,      6,     0xe0,        29}, /* 120.00 MHz */
+	{128,      1,   16,      0,     0xe0,        48}, /* tfgoal guessed */
+//	{130,      1,   15,      3,     0xe0,        28}, /* 128.00 MHz */
+//	{135,      1,   15,      7,     0xe0,        27}, /* 128.00 MHz */
+//	{140,      0,    7,      7,     0xe0,        26}, /* 140.00 MHz */
+//	{145,      0,    8,      0,     0xe0,        25}, /* 140.00 MHz */
+//	{150,      0,    8,      2,     0xe0,        24}, /* 149.28 MHz */
+//	{155,      0,    8,      6,     0xe0,        23}, /* 149.28 MHz */
+//	{160,      0,    9,      0,     0xe0,        22}, /* 160.00 MHz */
 	{  0,      0,   0,       0,        0,         0},
 };
 
@@ -1441,6 +1663,7 @@ static void w100_set_dispregs(struct w100fb_par *par)
 			graphic_ctrl.f_w100.lcd_sclk_on=1;
 			graphic_ctrl.f_w100.low_power_on=0;
 			graphic_ctrl.f_w100.req_freq=0;
+			graphic_ctrl.f_w100.total_req_graphic=par->mode->xres >> 1; // panel xres, not mode
 			graphic_ctrl.f_w100.portrait_mode=rot;
 
 			/* Zaurus needs this */
@@ -1558,6 +1781,18 @@ static void w100_suspend(u32 mode)
 		val = readl(remapped_regs + mmPLL_CNTL);
 		val |= 0x00000004;  /* bit2=1 */
 		writel(val, remapped_regs + mmPLL_CNTL);
+
+		writel(0x00000000, remapped_regs + mmLCDD_CNTL1);
+		writel(0x00000000, remapped_regs + mmLCDD_CNTL2);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL1);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL2);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL3);
+
+		val = readl(remapped_regs + mmMEM_EXT_CNTL);
+		val |= 0xF0000000;
+		val &= ~(0x00000001);
+		writel(val, remapped_regs + mmMEM_EXT_CNTL);
+
 		writel(0x0000001d, remapped_regs + mmPWRMGT_CNTL);
 	}
 }

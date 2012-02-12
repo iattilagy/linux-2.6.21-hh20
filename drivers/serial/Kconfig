@@ -474,6 +474,24 @@ config SERIAL_PXA_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_PXA_COUNT
+	int "Number of PXA ports in use."
+	depends on SERIAL_PXA
+	default "4"
+	help
+	  Small device implementations may wish to use this define to
+	  force the 8250 driver to start at ttySN instead of ttyS0, in
+	  order to avoid name space clashing with the built-in PXA
+	  driver.
+
+config SERIAL_PXA_IR
+	tristate "Infra-red serial port"
+	depends on SERIAL_PXA
+	help
+	  Emulate old-style SIR infra-red on serial port. This will
+	  piggyback on pxa2xx-ir device, and both drivers can be switched
+	  on a port arbitrarily.
+
 config SERIAL_SA1100
 	bool "SA1100 serial port support"
 	depends on ARM && ARCH_SA1100
@@ -859,6 +877,7 @@ config SERIAL_MPC52xx
 	tristate "Freescale MPC52xx family PSC serial support"
 	depends on PPC_MPC52xx
 	select SERIAL_CORE
+	select FW_LOADER
 	help
 	  This drivers support the MPC52xx PSC serial ports. If you would
 	  like to use them, you must answer Y or M to this option. Not that
@@ -1015,6 +1034,13 @@ config SERIAL_NETX_CONSOLE
 	help
 	  If you have enabled the serial port on the Motorola IMX
 	  CPU you can make it the console by answering Y to this option.
+
+config RS232_SERIAL
+	bool "RS232 transceiver on serial port"
+	help
+	  Generic driver for RS232 implemented using external transceiver
+	  attached to a serial port. Manages on-demand power control for
+	  the transceiver.
 
 config SERIAL_OF_PLATFORM
 	tristate "Serial port on Open Firmware platform bus"

@@ -114,6 +114,9 @@ static int debug	   = 0;
 
 #define dprintk(msg...)	if (debug) { printk(KERN_DEBUG "s3c2410fb: " msg); }
 
+#define DISPLAY_TYPE(fb_info) \
+				(fb_info->mach_info->regs.lcdcon1 & S3C2410_LCDCON1_TFT)
+
 /* useful functions */
 
 /* s3c2410fb_set_lcdaddr
@@ -211,7 +214,7 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 			var->transp.length 	= 0;
 			break;
 		case 8:
-			if ( fbi->mach_info->type != S3C2410_LCDCON1_TFT ) {
+			if ( DISPLAY_TYPE(fbi) != S3C2410_LCDCON1_TFT ) {
 				/* 8 bpp 332 */
 				var->red.length		= 3;
 				var->red.offset		= 5;
@@ -291,15 +294,12 @@ static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
 	int hs;
 
 	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_MODEMASK;
-	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_TFT;
 
 	dprintk("%s: var->xres  = %d\n", __FUNCTION__, var->xres);
 	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
 	dprintk("%s: var->bpp   = %d\n", __FUNCTION__, var->bits_per_pixel);
 
-	fbi->regs.lcdcon1 |= fbi->mach_info->type;
-
-	if (fbi->mach_info->type == S3C2410_LCDCON1_TFT)
+	if (DISPLAY_TYPE(fbi) == S3C2410_LCDCON1_TFT)
 		switch (var->bits_per_pixel) {
 		case 1:
 			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT1BPP;
@@ -373,7 +373,7 @@ static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
 	fbi->regs.lcdcon2 &= ~S3C2410_LCDCON2_LINEVAL(0x3ff);
 	fbi->regs.lcdcon2 |=  S3C2410_LCDCON2_LINEVAL(var->yres - 1);
 
-	switch(fbi->mach_info->type) {
+	switch(DISPLAY_TYPE(fbi)) {
 		case S3C2410_LCDCON1_DSCAN4:
 		case S3C2410_LCDCON1_STN8:
 			hs = var->xres / 8;
@@ -401,7 +401,7 @@ static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
 	if (var->pixclock > 0) {
 		int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock);
 
-		if (fbi->mach_info->type == S3C2410_LCDCON1_TFT) {
+		if (DISPLAY_TYPE(fbi) == S3C2410_LCDCON1_TFT) {
 			clkdiv = (clkdiv / 2) -1;
 			if (clkdiv < 0)
 				clkdiv = 0;

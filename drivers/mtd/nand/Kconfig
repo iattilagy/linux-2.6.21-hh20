@@ -126,6 +126,16 @@ config MTD_NAND_S3C2410_HWECC
 	  incorrect ECC generation, and if using these, the default of
 	  software ECC is preferable.
 
+	  If you lay down a device with the hardware ECC, then you will
+	  currently not be able to switch to software, as there is no
+	  implementation for ECC method used by the S3C2410
+
+config MTD_NAND_HAMCOP
+	tristate "HP iPAQ HAMCOP NAND flash driver"
+	depends on SOC_HAMCOP && MTD_NAND
+	help
+	  NAND flash driver for the HAMCOP ASIC used in HP iPAQ h2200.
+
 config MTD_NAND_NDFC
 	tristate "NDFC NanD Flash Controller"
 	depends on MTD_NAND && 44x
@@ -252,11 +262,100 @@ config MTD_NAND_AT91
 	  Enables support for NAND Flash / Smart Media Card interface
 	  on Atmel AT91 processors.
 
+config MTD_NAND_GHI270
+	bool "Support for NAND Flash on GHI270"
+	depends on MTD_NAND && MACH_GHI270
+	help
+	  Enables support for NAND flash on Grayhill GHI270 devices.
+
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
 	depends on MTD_NAND && MTD_PARTITIONS
 	help
 	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
+
+config MTD_NAND_NANDSIM_FIRST_ID
+	hex "First ID byte"
+	range 0x00 0xff
+	default 0x98
+	depends on MTD_NAND_NANDSIM
+	help 
+     	  The fist byte returned by NAND Flash 'read ID' command (manufaturer ID).
+
+config MTD_NAND_NANDSIM_SECOND_ID
+	hex "Second ID byte"
+	range 0x00 0xff
+	default 0x39
+	depends on MTD_NAND_NANDSIM
+	help
+	  The second byte returned by NAND Flash 'read ID' command (chip ID).
+
+config MTD_NAND_NANDSIM_THIRD_ID
+	hex "Third ID byte"
+	range 0x00 0xff
+	default 0xff
+	depends on MTD_NAND_NANDSIM
+	help
+	  The third byte returned by NAND Flash 'read ID' command.
+
+config MTD_NAND_NANDSIM_FOURTH_ID
+	hex "Fourth ID byte"
+	range 0x00 0xff
+	default 0xff
+	depends on MTD_NAND_NANDSIM
+	help
+	  The fourth byte returned by NAND Flash 'read ID' command.
+
+config MTD_NAND_NANDSIM_DEBUG
+	bool "NAND Simulator debugging"
+	depends on MTD_NAND_NANDSIM
+	help
+	  Only helful for tracking problems.
+
+config MTD_NAND_NANDSIM_LOG
+        bool "NAND Simulator logging"
+	depends on MTD_NAND_NANDSIM
+	help
+	   Logs the track of NAND read/write/erase commands.
+
+config MTD_NAND_NANDSIM_DELAY
+	bool "Emulate NAND chip delays using busy-wait cycles"
+	default n
+	depends on MTD_NAND_NANDSIM
+
+config MTD_NAND_NANDSIM_ACCESS_DELAY
+	int "Access delay (microiseconds)"
+	default 25
+	depends on MTD_NAND_NANDSIM_DELAY
+
+config MTD_NAND_NANDSIM_PROGRAM_DELAY
+	int "Program delay (microseconds)"
+	default 200
+	depends on MTD_NAND_NANDSIM_DELAY
+
+config MTD_NAND_NANDSIM_ERASE_DELAY
+	int "Erase delay (milliseconds)"
+	default 2
+	depends on MTD_NAND_NANDSIM_DELAY
+
+config MTD_NAND_NANDSIM_OUTPUT_CYCLE
+	int "Word output (from flash) time (nanoseconds)"
+	default 40
+	depends on MTD_NAND_NANDSIM_DELAY
+	help
+	  For 16 bit devices word is 2 bytes, for 8 bit devices - 1 byte
+
+config MTD_NAND_NANDSIM_INPUT_CYCLE
+	int "Word input (to flash) time (nanoseconds)"
+	default 50
+	depends on MTD_NAND_NANDSIM_DELAY
+	help
+	  For 16 bit devices word is 2 bytes, for 8 bit devices - 1 byte
+	
+config MTD_RECON_X_NAND
+        bool
+        default RECON_X
+        depends on MACH_RECON && RECON_X
 
 endmenu

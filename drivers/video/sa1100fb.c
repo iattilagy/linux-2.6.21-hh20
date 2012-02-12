@@ -398,6 +398,26 @@ static struct sa1100fb_mach_info shannon_info __initdata = {
 };
 #endif
 
+#ifdef CONFIG_SA1100_JORNADA56X   
+static struct sa1100fb_mach_info jornada56x_info __initdata = {
+	.pixclock	= 179264,	.bpp		= 16,
+	.xres		= 240,		.yres		= 320,
+	.hsync_len	= 4,		.vsync_len	= 2,
+	.left_margin	= 7,		.upper_margin	= 2,
+	.right_margin	= 3,		.lower_margin   = 3,
+	.sync		= 0,		.cmap_static    = 1,
+	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+};
+
+static struct sa1100fb_rgb jornada56x_rgb_16 = {
+	.red    = { .offset = 12, .length = 4, },
+	.green  = { .offset = 7,  .length = 4, },
+	.blue   = { .offset = 1,  .length = 4, },
+	.transp = { .offset = 0,  .length = 0, },
+};
+#endif
+
 
 
 static struct sa1100fb_mach_info * __init
@@ -461,6 +481,10 @@ sa1100fb_get_machine_info(struct sa1100fb_info *fbi)
 	if (machine_is_shannon()) {
 		inf = &shannon_info;
 	}
+#endif
+#ifdef CONFIG_SA1100_JORNADA56X
+		inf= &jornada56x_info;
+		fbi->rgb[RGB_16] = &jornada56x_rgb_16;
 #endif
 	return inf;
 }
@@ -1405,7 +1429,15 @@ static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
 	fbi->rgb[RGB_8]		= &rgb_8;
 	fbi->rgb[RGB_16]	= &def_rgb_16;
 
-	inf = sa1100fb_get_machine_info(fbi);
+	if (dev->platform_data) {
+		inf = dev->platform_data;
+		if (inf->rgb_8)
+			fbi->rgb[RGB_8]	= inf->rgb_8;
+		if (inf->rgb_16)
+			fbi->rgb[RGB_16] = inf->rgb_16;
+	} else {
+		inf = sa1100fb_get_machine_info(fbi);
+	}
 
 	/*
 	 * People just don't seem to get this.  We don't support

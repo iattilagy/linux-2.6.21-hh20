@@ -40,7 +40,8 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 			       struct request *req)
 {
 	unsigned long block, nsect;
-	char *buf;
+	char *buf, *fbuf;
+	int ret;
 
 	block = req->sector << 9 >> tr->blkshift;
 	nsect = req->current_nr_sectors << 9 >> tr->blkshift;
@@ -55,10 +56,16 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 
 	switch(rq_data_dir(req)) {
 	case READ:
-		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
-			if (tr->readsect(dev, block, buf))
-				return 0;
-		return 1;
+		ret = 1;
+		for (; nsect > 0; nsect--, block++, buf += tr->blksize) {
+			if (tr->readsect(dev, block, buf)) {
+				ret = 0;
+				break;
+			}
+		}
+		for (fbuf = req->buffer; fbuf < buf; fbuf += PAGE_SIZE)
+			flush_dcache_page(virt_to_page(fbuf));
+		return ret;
 
 	case WRITE:
 		if (!tr->writesect)

@@ -73,6 +73,7 @@
 #define DoC_Mplus_Toggle		0x1046
 #define DoC_Mplus_DownloadStatus	0x1074
 #define DoC_Mplus_CtrlConfirm		0x1076
+#define DoC_Mplus_NprotectionStatus   0x1078
 #define DoC_Mplus_Power			0x1fff
 
 /* How to access the device?
@@ -80,7 +81,7 @@
  * On PPC, it's mmap'd and 16-bit wide.
  * Others use readb/writeb
  */
-#if defined(__arm__)
+#if 0 && defined(__arm__) && !defined(CONFIG_MACH_OMAP_H6300)
 #define ReadDOC_(adr, reg)      ((unsigned char)(*(volatile __u32 *)(((unsigned long)adr)+((reg)<<2))))
 #define WriteDOC_(d, adr, reg)  do{ *(volatile __u32 *)(((unsigned long)adr)+((reg)<<2)) = (__u32)d; wmb();} while(0)
 #define DOC_IOREMAP_LEN 0x8000
@@ -91,6 +92,8 @@
 #else
 #define ReadDOC_(adr, reg)      readb((void __iomem *)(adr) + (reg))
 #define WriteDOC_(d, adr, reg)  writeb(d, (void __iomem *)(adr) + (reg))
+#define ReadWDOC_(adr, reg)      readw((void __iomem *)(adr) + (reg))
+#define WriteWDOC_(d, adr, reg)  writew(d, (void __iomem *)(adr) + (reg))
 #define DOC_IOREMAP_LEN 0x2000
 
 #endif
@@ -102,6 +105,9 @@
 /* These are provided to directly use the DoC_xxx defines */
 #define ReadDOC(adr, reg)      ReadDOC_(adr,DoC_##reg)
 #define WriteDOC(d, adr, reg)  WriteDOC_(d,adr,DoC_##reg)
+
+#define ReadWDOC(adr, reg)      ReadWDOC_(adr,DoC_##reg)
+#define WriteWDOC(d, adr, reg)  WriteWDOC_(d,adr,DoC_##reg)
 
 #define DOC_MODE_RESET 		0
 #define DOC_MODE_NORMAL 	1

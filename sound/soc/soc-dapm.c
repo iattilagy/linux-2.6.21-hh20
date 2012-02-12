@@ -700,8 +700,10 @@ static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 	struct snd_soc_dapm_path *path;
 	int found = 0;
 
-	if (widget->id != snd_soc_dapm_mixer)
+	/* this is called for both switches and mixers */
+	if (widget->id != snd_soc_dapm_mixer && widget->id != snd_soc_dapm_switch) {
 		return -ENODEV;
+	};
 
 	if (!snd_soc_test_bits(widget->codec, reg, val_mask, val))
 		return 0;

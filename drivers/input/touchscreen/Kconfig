@@ -1,5 +1,5 @@
 #
-# Mouse driver configuration
+# Touchscreen driver configuration
 #
 menuconfig INPUT_TOUCHSCREEN
 	bool "Touchscreens"
@@ -53,6 +53,20 @@ config TOUCHSCREEN_CORGI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called corgi_ts.
+
+config TOUCHSCREEN_TSC2101
+	tristate "TI TSC2101 touchscreen input driver"
+	depends on MACH_HX2750 && INPUT && INPUT_TOUCHSCREEN
+	select SOC_TSC2101
+	default y	
+	help
+	  Say Y here to enable the driver for the touchscreen on the 
+	  iPAQ hx2750 series of PDAs.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tsc2101_ts.
 
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
@@ -113,6 +127,43 @@ config TOUCHSCREEN_HP600
 	  To compile this driver as a module, choose M here: the
 	  module will be called hp680_ts_input.
 
+config TOUCHSCREEN_WM97XX
+	tristate "Support for WM97xx AC97 touchscreen controllers"
+	depends AC97_BUS
+
+config TOUCHSCREEN_WM9705
+	bool "WM9705 Touchscreen interface support"
+	depends on TOUCHSCREEN_WM97XX
+	help
+	  Say Y here if you have the wm9705 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm9705.
+
+config TOUCHSCREEN_WM9712
+	bool "WM9712 Touchscreen interface support"
+	depends on TOUCHSCREEN_WM97XX
+	help
+	  Say Y here if you have the wm9712 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm9712.
+
+config TOUCHSCREEN_WM9713
+	bool "WM9713 Touchscreen interface support"
+	depends on TOUCHSCREEN_WM97XX
+	help
+	  Say Y here if you have the wm9713 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm9713.
+
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"
 	select SERIO
@@ -148,6 +199,62 @@ config TOUCHSCREEN_TOUCHWIN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchwin.
+
+config TOUCHSCREEN_S3C2410
+	tristate "Samsung S3C2410 touchscreen input driver"
+	depends on ARCH_S3C2410 && INPUT && INPUT_TOUCHSCREEN
+	select SERIO
+	help
+	  Say Y here if you have the s3c2410 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s3c2410_ts.
+
+config TOUCHSCREEN_S3C2410_DEBUG
+	boolean "Samsung S3C2410 touchscreen debug messages"
+	depends on TOUCHSCREEN_S3C2410
+	help
+	  Select this if you want debug messages
+
+config TOUCHSCREEN_S3C2410_ALT
+	boolean "Alternate ADC conversion management"
+	depends on TOUCHSCREEN_S3C2410
+	help
+	  Select this if you have some glitches with the standard
+	  driver. This alternate ADC management has been implemented
+	  for the s3c2440 G500. On this machine the other driver is
+	   not smooth, there are annoying glitches that prevent the
+	   stylus to be usable.
+
+config TOUCHSCREEN_ASIC2
+	tristate "HTC ASIC2 Touchscreen driver"
+	depends on HTC_ASIC2
+	select ADC_ASIC2
+	help
+	  Touchscreen driver for ASIC2 chip. This will pull in 
+	  dependent ASIC2 ADC driver automatically.
+
+config TOUCHSCREEN_IPAQ_MICRO
+        tristate "HP iPAQ Micro ASIC - touchscreen driver"
+        depends on IPAQ_MICRO && INPUT
+
+config TOUCHSCREEN_TSC2200
+        tristate "TSC2200 touchscreen driver"
+        depends on SOC_TSC2200
+
+config TOUCHSCREEN_ADC
+        tristate "Touchscreen driver for Generic ADC device"
+	depends on ADC
+	help
+	  Touchscreen driver which uses Generic ADC API
+	  (linux/adc.h) to sample TS coordinates. Fully
+	  configurable via platform_data. Includes optional
+	  software debouncing.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ts_adc.
 
 config TOUCHSCREEN_UCB1400
 	tristate "Philips UCB1400 touchscreen"

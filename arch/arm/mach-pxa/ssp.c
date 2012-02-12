@@ -19,6 +19,7 @@
  *   22nd Aug 2003 Initial version.
  *   20th Dec 2004 Added ssp_config for changing port config without
  *                 closing the port.
+ *   15th Feb 2005 SDG Systems, add interrupt callbacks
  *    4th Aug 2005 Added option to disable irq handler registration and
  *                 cleaned up irq and clock detection.
  */
@@ -68,6 +69,7 @@ static int use_count[PXA_SSP_PORTS] = {0, 0, 0};
 static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 {
 	struct ssp_dev *dev = (struct ssp_dev*) dev_id;
+	struct ssp_ops *ops = dev->ops;
 	unsigned int status = SSSR_P(dev->port);
 
 	SSSR_P(dev->port) = status; /* clear status bits */
@@ -81,6 +83,20 @@ static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 	if (status & SSSR_BCE)
 		printk(KERN_WARNING "SSP(%d): bit count error\n", dev->port);
 
+	/*
+	 * Notify the user of the need to service the fifos. The called
+	 * party will likely read the bytes from the fifo using ssp_read_word.
+	 */
+	if (ops != NULL) {
+		if ((status & SSSR_RFS) && ops->rx_thresh) {
+			int count = ((status >> 12) & 0xf)+1;
+			ops->rx_thresh( ops->priv, count );
+		}
+		if ((status & SSSR_TFS) && ops->tx_thresh) {
+			int count = (status >> 8) & 0xf;
+			ops->tx_thresh( ops->priv, count );
+		}
+	}
 	return IRQ_HANDLED;
 }
 

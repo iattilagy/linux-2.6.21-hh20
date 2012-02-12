@@ -25,12 +25,19 @@ led-$(CONFIG_SA1100_CERF)		+= leds-cerf.o
 
 obj-$(CONFIG_SA1100_COLLIE)		+= collie.o
 
-obj-$(CONFIG_SA1100_H3600)		+= h3600.o
+obj-$(CONFIG_SA1100_H3600)		+= h3600.o ipaq.o
+obj-$(CONFIG_SA1100_H3100)		+= h3100.o ipaq.o
+obj-$(CONFIG_SA1100_H3800)		+= h3800.o ipaq.o
 
 obj-$(CONFIG_SA1100_HACKKIT)		+= hackkit.o
 led-$(CONFIG_SA1100_HACKKIT)		+= leds-hackkit.o
 
 obj-$(CONFIG_SA1100_JORNADA720)		+= jornada720.o
+obj-$(CONFIG_SA1100_JORNADA56X)		+= jornada56x.o
+
+obj-$(CONFIG_SA1100_JORNADA820)		+= jornada820.o
+
+obj-$(CONFIG_SA1100_XDA)		+= htcwallaby.o
 
 obj-$(CONFIG_SA1100_LART)		+= lart.o
 led-$(CONFIG_SA1100_LART)		+= leds-lart.o
@@ -46,8 +53,11 @@ led-$(CONFIG_SA1100_SIMPAD)		+= leds-simpad.o
 obj-$(CONFIG_LEDS) += $(led-y)
 
 # SA1110 USB client support
-#obj-$(CONFIG_SA1100_USB)		+= usb/
+obj-$(CONFIG_SA1100_USB)		+= usb/
 
 # Miscelaneous functions
 obj-$(CONFIG_PM)			+= pm.o sleep.o
 obj-$(CONFIG_SA1100_SSP)		+= ssp.o
+
+obj-$(CONFIG_IPAQ_H3600_LCD)	+= h3600_lcd.o
+

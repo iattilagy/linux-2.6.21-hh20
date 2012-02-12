@@ -82,9 +82,18 @@ config MMC_WBSD
 
 	  If unsure, say N.
 
+config MMC_S3C2440
+	tristate "Samsung S3C2440 Multimedia Card Interface support"
+	depends on MMC && CPU_S3C2440
+	help
+	  This selects the Samsung S3C2440 Multimedia Card Interface 
+	  support. 
+
+	  If unsure, say N.
+
 config MMC_AU1X
 	tristate "Alchemy AU1XX0 MMC Card Interface support"
-	depends on MMC && SOC_AU1200
+	depends on MMC && SOC_AU1X00
 	help
 	  This selects the AMD Alchemy(R) Multimedia card interface.
 	  If you have a Alchemy platform with a MMC slot, say Y or M here.
@@ -124,5 +133,32 @@ config MMC_TIFM_SD
 
           To compile this driver as a module, choose M here: the
 	  module will be called tifm_sd.
+
+config MMC_TMIO
+	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
+	depends on MMC
+	help
+	  This provides support for the SD/MMC cell found in TC6393XB,
+	  T7L66XB and also ipaq ASIC3
+
+config MMC_SAMCOP
+	tristate "SAMCOP MMC/SD function support"
+	depends on MMC
+	help
+	  This provides support for the SD/MMC cell found in SAMCOP.
+
+config MMC_ASIC3
+	tristate "HTC ASIC3 SD/MMC support"
+	depends on MMC && HTC_ASIC3
+	help
+	  This provides support for the ASIC3 SD/MMC controller, used
+	  in the iPAQ hx4700 and others.
+
+config MMC_ASIC1
+	tristate "HTC ASIC1 SD/MMC support"
+	depends on MMC && HTC_ASIC2
+	help
+	  This provides support for the ASIC1 SD/MMC controller, used
+	  in the iPAQ h38xx and others.
 
 endmenu

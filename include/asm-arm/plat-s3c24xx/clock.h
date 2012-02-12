@@ -21,6 +21,7 @@ struct clk {
 	unsigned long         ctrlbit;
 
 	int		    (*enable)(struct clk *, int enable);
+	void		    (*disable)(struct clk *);
 	int		    (*set_rate)(struct clk *c, unsigned long rate);
 	unsigned long	    (*get_rate)(struct clk *c);
 	unsigned long	    (*round_rate)(struct clk *c, unsigned long rate);
@@ -56,6 +57,7 @@ extern struct mutex clocks_mutex;
 extern int s3c2410_clkcon_enable(struct clk *clk, int enable);
 
 extern int s3c24xx_register_clock(struct clk *clk);
+extern int s3c24xx_unregister_clock(struct clk *clk);
 
 extern int s3c24xx_setup_clocks(unsigned long xtal,
 				unsigned long fclk,

@@ -260,6 +260,7 @@ struct ac97_codec {
 	u32 model;
 
 	unsigned int modem:1;
+	unsigned int power:1;
 
 	struct ac97_ops *codec_ops;
 

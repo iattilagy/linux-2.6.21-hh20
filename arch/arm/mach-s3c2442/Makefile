@@ -14,3 +14,6 @@ obj-$(CONFIG_CPU_S3C2442)	+= clock.o
 
 # Machine support
 
+obj-$(CONFIG_MACH_RX1950)	+= mach-rx1950.o
+obj-$(CONFIG_MACH_HTCHERMES)	+= htchermes/
+obj-$(CONFIG_MACH_HTC_TRINITY)	+= htctrinity/

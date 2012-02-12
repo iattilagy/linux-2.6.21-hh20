@@ -19,7 +19,7 @@
 
 #ifdef CONFIG_PXA27x			// workaround for Errata 50
 #define MDREFR_KDIV	0x200a4000	// all banks
-#define CCCR_SLEEP	0x00000107	// L=7 2N=2 A=0 PPDIS=0 CPDIS=0
+#define CCCR_SLEEP	0xC0000107	// L=7 2N=2 A=0 PPDIS=1 CPDIS=1
 #endif
 
 		.text
@@ -50,9 +50,18 @@ ENTRY(pxa_cpu_suspend)
 
 	bic	r3, r3, #2			@ clear frequency change bit
 
+#ifndef CONFIG_PXA_SUSPEND_SAVE_EXTRA_REGS
 	@ store them plus current virtual stack ptr on stack
 	mov	r10, sp
 	stmfd	sp!, {r3 - r10}
+#else
+	@ get CCCR
+	ldr	r11, =CCCR
+	ldr	r10, [r11]
+	mov	r11, sp
+	@ store CP registers, CCCR and current virtual stack ptr on stack
+	stmfd	sp!, {r3 - r11}
+#endif
 
 	mov r5, r0				@ save sleep mode
 	@ preserve phys address of stack
@@ -193,7 +202,14 @@ ENTRY(pxa_cpu_resume)
 
 	ldr	r0, sleep_save_sp		@ stack phys addr
 	ldr	r2, =resume_after_mmu		@ its absolute virtual address
+#ifndef CONFIG_PXA_SUSPEND_SAVE_EXTRA_REGS
 	ldmfd	r0, {r3 - r9, sp}		@ CP regs + virt stack ptr
+#else
+	ldmfd	r0, {r3 - r10, sp}		@ CP regs, stored CCCR + virt stack ptr
+
+	ldr r11, =0x41300000			@ restore CCCR in case the
+	str r10, [r11]				@   bootloader overwrote it
+#endif
 
 	mov	r1, #0
 	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs

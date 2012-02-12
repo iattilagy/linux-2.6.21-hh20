@@ -66,6 +66,90 @@ static ssize_t rtc_sysfs_show_since_epoch(struct class_device *dev, char *buf)
 }
 static CLASS_DEVICE_ATTR(since_epoch, S_IRUGO, rtc_sysfs_show_since_epoch, NULL);
 
+
+static ssize_t rtc_sysfs_show_alarm_since_epoch(struct class_device *dev, char *buf)
+{
+	ssize_t retval;
+	struct rtc_wkalrm alrm;
+
+	retval = rtc_read_alarm(dev, &alrm);
+	if (retval == 0) {
+		unsigned long time;
+		rtc_tm_to_time(&alrm.time, &time);
+		retval = sprintf(buf, "%lu\n", time);
+	}
+
+	return retval;
+}
+
+static ssize_t rtc_sysfs_store_alarm_since_epoch(struct class_device *dev, const char *buf, size_t count)
+{
+	ssize_t retval;
+	struct rtc_wkalrm alrm;
+
+	unsigned long time = simple_strtoul(buf, NULL, 0);
+
+	retval = rtc_read_alarm(dev, &alrm);
+	if (retval)
+		return retval;
+	rtc_time_to_tm(time, &alrm.time);
+	retval = rtc_set_alarm(dev, &alrm);
+	if (retval)
+		return retval;
+
+	return count;
+}
+/* Use sysfs attribute name consistent with clock's */
+struct class_device_attribute class_device_attr_alarm_since_epoch = \
+	__ATTR(since_epoch, 0644 ,rtc_sysfs_show_alarm_since_epoch, rtc_sysfs_store_alarm_since_epoch);
+
+static ssize_t rtc_sysfs_show_alarm_wakeup_enabled(struct class_device *dev, char *buf)
+{
+	ssize_t retval;
+	struct rtc_wkalrm alrm;
+
+	retval = rtc_read_alarm(dev, &alrm);
+	if (retval == 0) {
+		retval = sprintf(buf, "%d\n", alrm.enabled);
+	}
+
+	return retval;
+}
+
+static ssize_t rtc_sysfs_store_alarm_wakeup_enabled(struct class_device *dev, const char *buf, size_t count)
+{
+	ssize_t retval;
+	struct rtc_wkalrm alrm;
+
+	unsigned long enabled = simple_strtoul(buf, NULL, 0);
+
+	retval = rtc_read_alarm(dev, &alrm);
+	if (retval)
+		return retval;
+	alrm.enabled = !!enabled;
+	retval = rtc_set_alarm(dev, &alrm);
+	if (retval)
+		return retval;
+
+	return count;
+}
+static CLASS_DEVICE_ATTR(wakeup_enabled, 0644, rtc_sysfs_show_alarm_wakeup_enabled, rtc_sysfs_store_alarm_wakeup_enabled);
+
+static ssize_t rtc_sysfs_show_alarm_pending(struct class_device *dev, char *buf)
+{
+	ssize_t retval;
+	struct rtc_wkalrm alrm;
+
+	retval = rtc_read_alarm(dev, &alrm);
+	if (retval == 0) {
+		retval = sprintf(buf, "%d\n", alrm.pending);
+	}
+
+	return retval;
+}
+static CLASS_DEVICE_ATTR(pending, S_IRUGO, rtc_sysfs_show_alarm_pending, NULL);
+
+
 static struct attribute *rtc_attrs[] = {
 	&class_device_attr_name.attr,
 	&class_device_attr_date.attr,
@@ -77,6 +161,19 @@ static struct attribute *rtc_attrs[] = {
 static struct attribute_group rtc_attr_group = {
 	.attrs = rtc_attrs,
 };
+
+static struct attribute *rtc_alarm_attrs[] = {
+	&class_device_attr_alarm_since_epoch.attr,
+	&class_device_attr_wakeup_enabled.attr,
+	&class_device_attr_pending.attr,
+	NULL,
+};
+
+static struct attribute_group rtc_alarm_attr_group = {
+	.name	= "alarm",
+	.attrs	= rtc_alarm_attrs,
+};
+
 
 
 static ssize_t
@@ -172,20 +269,19 @@ static int rtc_sysfs_add_device(struct class_device *class_dev,
 	dev_dbg(class_dev->dev, "rtc intf: sysfs\n");
 
 	err = sysfs_create_group(&class_dev->kobj, &rtc_attr_group);
-	if (err)
-		dev_err(class_dev->dev, "failed to create %s\n",
-				"sysfs attributes");
-	else if (rtc_does_wakealarm(class_dev)) {
-		/* not all RTCs support both alarms and wakeup */
-		err = class_device_create_file(class_dev,
-					&class_device_attr_wakealarm);
-		if (err) {
-			dev_err(class_dev->dev, "failed to create %s\n",
-					"alarm attribute");
-			sysfs_remove_group(&class_dev->kobj, &rtc_attr_group);
-		}
+	if (err) {
+		dev_err(class_dev->dev,
+			"failed to create sysfs attributes\n");
+		goto error;
+	}
+	err = sysfs_create_group(&class_dev->kobj, &rtc_alarm_attr_group);
+	if (err) {
+		sysfs_remove_group(&class_dev->kobj, &rtc_attr_group);
+		dev_err(class_dev->dev,
+			"failed to create sysfs alarm attributes\n");
 	}
 
+error:
 	return err;
 }
 
@@ -196,6 +292,7 @@ static void rtc_sysfs_remove_device(struct class_device *class_dev,
 		class_device_remove_file(class_dev,
 				&class_device_attr_wakealarm);
 	sysfs_remove_group(&class_dev->kobj, &rtc_attr_group);
+	sysfs_remove_group(&class_dev->kobj, &rtc_alarm_attr_group);
 }
 
 /* interface registration */

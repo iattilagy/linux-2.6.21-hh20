@@ -273,6 +273,11 @@
 #define DCMD_WIDTH4	(3 << 14)	/* 4 byte width (Word) */
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
+/* default combinations */
+#define DCMD_RXPCDR    (DCMD_INCTRGADDR|DCMD_FLOWSRC|DCMD_BURST32|DCMD_WIDTH4)
+#define DCMD_RXMCDR    (DCMD_INCTRGADDR|DCMD_FLOWSRC|DCMD_BURST32|DCMD_WIDTH4)
+#define DCMD_TXPCDR    (DCMD_INCSRCADDR|DCMD_FLOWTRG|DCMD_BURST32|DCMD_WIDTH4)
+
 
 /*
  * UARTs
@@ -389,7 +394,8 @@
 #define LSR_OE		(1 << 1)	/* Overrun Error */
 #define LSR_DR		(1 << 0)	/* Data Ready */
 
-#define MCR_LOOP	(1 << 4)
+#define MCR_AFE		(1 << 5)	/* auto-flow control enable */
+#define MCR_LOOP	(1 << 4)	/* loopback mode */
 #define MCR_OUT2	(1 << 3)	/* force MSR_DCD in loopback mode */
 #define MCR_OUT1	(1 << 2)	/* force MSR_RI in loopback mode */
 #define MCR_RTS		(1 << 1)	/* Request to Send */
@@ -445,6 +451,7 @@
 #define ICR_ALDIE	(1 << 12)	   /* enable arbitration interrupt */
 #define ICR_SADIE	(1 << 13)	   /* slave address detected int enable */
 #define ICR_UR		(1 << 14)	   /* unit reset */
+#define ICR_FM		(1 << 15)	   /* fast mode */
 
 #define ISR_RWM		(1 << 0)	   /* read/write mode */
 #define ISR_ACKNAK	(1 << 1)	   /* ack/nak status */
@@ -789,11 +796,18 @@
 #define UDC_INT_PACKETCMP  (0x1)
 
 #define UDCICR_INT(n,intr) (((intr) & 0x03) << (((n) & 0x0F) * 2))
+/* Older defines, do not use. */
 #define UDCICR1_IECC	(1 << 31)	/* IntEn - Configuration Change */
 #define UDCICR1_IESOF	(1 << 30)	/* IntEn - Start of Frame */
 #define UDCICR1_IERU	(1 << 29)	/* IntEn - Resume */
 #define UDCICR1_IESU	(1 << 28)	/* IntEn - Suspend */
 #define UDCICR1_IERS	(1 << 27)	/* IntEn - Reset */
+/* New defines. */
+#define UDCISR1_IRCC	(1 << 31)	/* IntEn - Configuration Change */
+#define UDCISR1_IRSOF	(1 << 30)	/* IntEn - Start of Frame */
+#define UDCISR1_IRRU	(1 << 29)	/* IntEn - Resume */
+#define UDCISR1_IRSU	(1 << 28)	/* IntEn - Suspend */
+#define UDCISR1_IRRS	(1 << 27)	/* IntEn - Reset */
 
 #define UDCISR0         __REG(0x4060000C) /* UDC Interrupt Status Register 0 */
 #define UDCISR1         __REG(0x40600010) /* UDC Interrupt Status Register 1 */
@@ -1107,9 +1121,17 @@
 #define PWM_PWDUTY0	__REG(0x40B00004)  /* PWM 0 Duty Cycle Register */
 #define PWM_PERVAL0	__REG(0x40B00008)  /* PWM 0 Period Control Register */
 
-#define PWM_CTRL1	__REG(0x40C00000)  /* PWM 1Control Register */
+#define PWM_CTRL2	__REG(0x40B00010)  /* PWM 2 Control Register */
+#define PWM_PWDUTY2	__REG(0x40B00014)  /* PWM 2 Duty Cycle Register */
+#define PWM_PERVAL2	__REG(0x40B00018)  /* PWM 2 Period Control Register */
+
+#define PWM_CTRL1	__REG(0x40C00000)  /* PWM 1 Control Register */
 #define PWM_PWDUTY1	__REG(0x40C00004)  /* PWM 1 Duty Cycle Register */
 #define PWM_PERVAL1	__REG(0x40C00008)  /* PWM 1 Period Control Register */
+
+#define PWM_CTRL3	__REG(0x40C00010)  /* PWM 3 Control Register */
+#define PWM_PWDUTY3	__REG(0x40C00014)  /* PWM 3 Duty Cycle Register */
+#define PWM_PERVAL3	__REG(0x40C00018)  /* PWM 3 Period Control Register */
 
 
 /*
@@ -1229,11 +1251,13 @@
 #define GPIO10_RTCCLK		10	/* real time clock (1 Hz) */
 #define GPIO11_3_6MHz		11	/* 3.6 MHz oscillator out */
 #define GPIO12_32KHz		12	/* 32 kHz out */
+#define GPIO12_CIF_DD_7		12	/* Camera data pin 7 */
 #define GPIO13_MBGNT		13	/* memory controller grant */
 #define GPIO14_MBREQ		14	/* alternate bus master request */
 #define GPIO15_nCS_1		15	/* chip select 1 */
 #define GPIO16_PWM0		16	/* PWM0 output */
 #define GPIO17_PWM1		17	/* PWM1 output */
+#define GPIO17_CIF_DD_6		17	/* Camera data pin 6 */
 #define GPIO18_RDY		18	/* Ext. Bus Ready */
 #define GPIO19_DREQ1		19	/* External DMA Request */
 #define GPIO20_DREQ0		20	/* External DMA Request */
@@ -1276,14 +1300,20 @@
 #define GPIO48_nPOE		48	/* Output Enable for Card Space */
 #define GPIO49_nPWE		49	/* Write Enable for Card Space */
 #define GPIO50_nPIOR		50	/* I/O Read for Card Space */
+#define GPIO50_CIF_DD_3		50	/* Camera data pin 3 */
 #define GPIO51_nPIOW		51	/* I/O Write for Card Space */
+#define GPIO51_CIF_DD_2		51	/* Camera data pin 2 */
 #define GPIO52_nPCE_1		52	/* Card Enable for Card Space */
+#define GPIO52_CIF_DD_4		52	/* Camera data pin 4 */
 #define GPIO53_nPCE_2		53	/* Card Enable for Card Space */
 #define GPIO53_MMCCLK		53	/* MMC Clock */
+#define GPIO53_CIF_MCLK		53	/* Camera Master Clock */
 #define GPIO54_MMCCLK		54	/* MMC Clock */
 #define GPIO54_pSKTSEL		54	/* Socket Select for Card Space */
 #define GPIO54_nPCE_2		54	/* Card Enable for Card Space (PXA27x) */
+#define GPIO54_CIF_PCLK		54	/* Camera Pixel Clock */
 #define GPIO55_nPREG		55	/* Card Address bit 26 */
+#define GPIO55_CIF_DD_1		55	/* Camera data pin 1 */
 #define GPIO56_nPWAIT		56	/* Wait signal for Card Space */
 #define GPIO57_nIOIS16		57	/* Bus Width select for I/O Card Space */
 #define GPIO58_LDD_0		58	/* LCD data pin 0 */
@@ -1318,10 +1348,14 @@
 #define GPIO79_nCS_3		79	/* chip select 3 */
 #define GPIO80_nCS_4		80	/* chip select 4 */
 #define GPIO81_NSCLK		81	/* NSSP clock */
+#define GPIO81_CIF_DD_0		81	/* Camera data pin 0 */
 #define GPIO82_NSFRM		82	/* NSSP Frame */
+#define GPIO82_CIF_DD_5		82	/* Camera data pin 5 */
 #define GPIO83_NSTXD		83	/* NSSP transmit */
 #define GPIO84_NSRXD		84	/* NSSP receive */
+#define GPIO84_CIF_FV		84	/* Camera frame start signal */
 #define GPIO85_nPCE_1		85	/* Card Enable for Card Space (PXA27x) */
+#define GPIO85_CIF_LV		85	/* Camera line start signal */
 #define GPIO92_MMCDAT0		92	/* MMC DAT0 (PXA27x) */
 #define GPIO102_nPCE_1		102	/* PCMCIA (PXA27x) */
 #define GPIO109_MMCDAT1		109	/* MMC DAT1 (PXA27x) */
@@ -1348,6 +1382,9 @@
 #define GPIO_MD_MASK_FN		0x300
 #define GPIO_DFLT_LOW		0x400
 #define GPIO_DFLT_HIGH		0x800
+#define GPIO_ACTIVE_LOW         0x1000
+#define GPIO_MD_MASK_SET  0x2000
+#define GPIO_MD_HIGH      0x2000
 
 #define GPIO1_RTS_MD		( 1 | GPIO_ALT_FN_1_IN)
 #define GPIO6_MMCCLK_MD		( 6 | GPIO_ALT_FN_1_OUT)
@@ -1357,11 +1394,13 @@
 #define GPIO10_RTCCLK_MD	(10 | GPIO_ALT_FN_1_OUT)
 #define GPIO11_3_6MHz_MD	(11 | GPIO_ALT_FN_1_OUT)
 #define GPIO12_32KHz_MD		(12 | GPIO_ALT_FN_1_OUT)
+#define GPIO12_CIF_DD_7_MD	(12 | GPIO_ALT_FN_2_IN)
 #define GPIO13_MBGNT_MD		(13 | GPIO_ALT_FN_2_OUT)
 #define GPIO14_MBREQ_MD		(14 | GPIO_ALT_FN_1_IN)
-#define GPIO15_nCS_1_MD		(15 | GPIO_ALT_FN_2_OUT)
+#define GPIO15_nCS_1_MD		(15 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
 #define GPIO16_PWM0_MD		(16 | GPIO_ALT_FN_2_OUT)
 #define GPIO17_PWM1_MD		(17 | GPIO_ALT_FN_2_OUT)
+#define GPIO17_CIF_DD_6_MD	(17 | GPIO_ALT_FN_2_IN)
 #define GPIO18_RDY_MD		(18 | GPIO_ALT_FN_1_IN)
 #define GPIO19_DREQ1_MD		(19 | GPIO_ALT_FN_1_IN)
 #define GPIO20_DREQ0_MD		(20 | GPIO_ALT_FN_1_IN)
@@ -1382,10 +1421,11 @@
 #define GPIO32_SDATA_IN1_AC97_MD	(32 | GPIO_ALT_FN_1_IN)
 #define GPIO32_SYSCLK_I2S_MD	(32 | GPIO_ALT_FN_1_OUT)
 #define GPIO32_MMCCLK_MD		( 32 | GPIO_ALT_FN_2_OUT)
-#define GPIO33_nCS_5_MD		(33 | GPIO_ALT_FN_2_OUT)
+#define GPIO33_nCS_5_MD		(33 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
 #define GPIO34_FFRXD_MD		(34 | GPIO_ALT_FN_1_IN)
 #define GPIO34_MMCCS0_MD	(34 | GPIO_ALT_FN_2_OUT)
 #define GPIO35_FFCTS_MD		(35 | GPIO_ALT_FN_1_IN)
+#define GPIO35_KP_MKOUT6_MD	(35 | GPIO_ALT_FN_2_OUT)
 #define GPIO36_FFDCD_MD		(36 | GPIO_ALT_FN_1_IN)
 #define GPIO37_FFDSR_MD		(37 | GPIO_ALT_FN_1_IN)
 #define GPIO38_FFRI_MD		(38 | GPIO_ALT_FN_1_IN)
@@ -1393,6 +1433,7 @@
 #define GPIO39_FFTXD_MD		(39 | GPIO_ALT_FN_2_OUT)
 #define GPIO40_FFDTR_MD		(40 | GPIO_ALT_FN_2_OUT)
 #define GPIO41_FFRTS_MD		(41 | GPIO_ALT_FN_2_OUT)
+#define GPIO41_KP_MKOUT7_MD	(41 | GPIO_ALT_FN_1_OUT)
 #define GPIO42_BTRXD_MD		(42 | GPIO_ALT_FN_1_IN)
 #define GPIO42_HWRXD_MD		(42 | GPIO_ALT_FN_3_IN)
 #define GPIO43_BTTXD_MD		(43 | GPIO_ALT_FN_2_OUT)
@@ -1406,22 +1447,27 @@
 #define GPIO46_STRXD_MD		(46 | GPIO_ALT_FN_2_IN)
 #define GPIO47_ICPTXD_MD	(47 | GPIO_ALT_FN_2_OUT)
 #define GPIO47_STTXD_MD		(47 | GPIO_ALT_FN_1_OUT)
-#define GPIO48_nPOE_MD		(48 | GPIO_ALT_FN_2_OUT)
-#define GPIO48_HWTXD_MD         (48 | GPIO_ALT_FN_1_OUT)
-#define GPIO48_nPOE_MD          (48 | GPIO_ALT_FN_2_OUT)
+#define GPIO48_nPOE_MD		(48 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
+#define GPIO48_HWTXD_MD		(48 | GPIO_ALT_FN_1_OUT)
+#define GPIO49_nPWE_MD		(49 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
 #define GPIO49_HWRXD_MD		(49 | GPIO_ALT_FN_1_IN)
-#define GPIO49_nPWE_MD		(49 | GPIO_ALT_FN_2_OUT)
-#define GPIO50_nPIOR_MD		(50 | GPIO_ALT_FN_2_OUT)
-#define GPIO50_HWCTS_MD         (50 | GPIO_ALT_FN_1_IN)
-#define GPIO51_HWRTS_MD         (51 | GPIO_ALT_FN_1_OUT)
-#define GPIO51_nPIOW_MD		(51 | GPIO_ALT_FN_2_OUT)
-#define GPIO52_nPCE_1_MD	(52 | GPIO_ALT_FN_2_OUT)
-#define GPIO53_nPCE_2_MD	(53 | GPIO_ALT_FN_2_OUT)
+#define GPIO50_nPIOR_MD		(50 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
+#define GPIO50_HWCTS_MD		(50 | GPIO_ALT_FN_1_IN)
+#define GPIO50_CIF_DD_3_MD	(50 | GPIO_ALT_FN_1_IN)
+#define GPIO51_nPIOW_MD		(51 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
+#define GPIO51_HWRTS_MD		(51 | GPIO_ALT_FN_1_OUT)
+#define GPIO51_CIF_DD_2_MD	(51 | GPIO_ALT_FN_1_IN)
+#define GPIO52_nPCE_1_MD	(52 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
+#define GPIO52_CIF_DD_4_MD	(52 | GPIO_ALT_FN_1_IN)
+#define GPIO53_nPCE_2_MD	(53 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
 #define GPIO53_MMCCLK_MD	(53 | GPIO_ALT_FN_1_OUT)
+#define GPIO53_CIF_MCLK_MD	(53 | GPIO_ALT_FN_2_OUT)
 #define GPIO54_MMCCLK_MD	(54 | GPIO_ALT_FN_1_OUT)
 #define GPIO54_nPCE_2_MD	(54 | GPIO_ALT_FN_2_OUT)
 #define GPIO54_pSKTSEL_MD	(54 | GPIO_ALT_FN_2_OUT)
+#define GPIO54_CIF_PCLK_MD	(54 | GPIO_ALT_FN_3_IN)
 #define GPIO55_nPREG_MD		(55 | GPIO_ALT_FN_2_OUT)
+#define GPIO55_CIF_DD_1_MD	(55 | GPIO_ALT_FN_1_IN)
 #define GPIO56_nPWAIT_MD	(56 | GPIO_ALT_FN_1_IN)
 #define GPIO57_nIOIS16_MD	(57 | GPIO_ALT_FN_1_IN)
 #define GPIO58_LDD_0_MD		(58 | GPIO_ALT_FN_2_OUT)
@@ -1452,22 +1498,40 @@
 #define GPIO75_LCD_LCLK_MD	(75 | GPIO_ALT_FN_2_OUT)
 #define GPIO76_LCD_PCLK_MD	(76 | GPIO_ALT_FN_2_OUT)
 #define GPIO77_LCD_ACBIAS_MD	(77 | GPIO_ALT_FN_2_OUT)
-#define GPIO78_nCS_2_MD		(78 | GPIO_ALT_FN_2_OUT)
-#define GPIO79_nCS_3_MD		(79 | GPIO_ALT_FN_2_OUT)
+#define GPIO78_nCS_2_MD		(78 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
+#define GPIO78_nPCE_2_MD	(78 | GPIO_ALT_FN_1_OUT | GPIO_DFLT_HIGH)
+#define GPIO79_nCS_3_MD		(79 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
 #define GPIO79_pSKTSEL_MD	(79 | GPIO_ALT_FN_1_OUT)
-#define GPIO80_nCS_4_MD		(80 | GPIO_ALT_FN_2_OUT)
+#define GPIO80_nCS_4_MD		(80 | GPIO_ALT_FN_2_OUT | GPIO_DFLT_HIGH)
 #define GPIO81_NSSP_CLK_OUT 	(81 | GPIO_ALT_FN_1_OUT)
 #define GPIO81_NSSP_CLK_IN  	(81 | GPIO_ALT_FN_1_IN)
+#define GPIO81_CIF_DD_0_MD	(81 | GPIO_ALT_FN_2_IN)
 #define GPIO82_NSSP_FRM_OUT 	(82 | GPIO_ALT_FN_1_OUT)
 #define GPIO82_NSSP_FRM_IN  	(82 | GPIO_ALT_FN_1_IN)
+#define GPIO82_CIF_DD_5_MD	(82 | GPIO_ALT_FN_3_IN)
 #define GPIO83_NSSP_TX      	(83 | GPIO_ALT_FN_1_OUT)
 #define GPIO83_NSSP_RX      	(83 | GPIO_ALT_FN_2_IN)
 #define GPIO84_NSSP_TX      	(84 | GPIO_ALT_FN_1_OUT)
 #define GPIO84_NSSP_RX      	(84 | GPIO_ALT_FN_2_IN)
+#define GPIO84_CIF_FV_MD	(84 | GPIO_ALT_FN_3_IN)
 #define GPIO85_nPCE_1_MD	(85 | GPIO_ALT_FN_1_OUT)
+#define GPIO85_CIF_LV_MD	(85 | GPIO_ALT_FN_3_IN)
+#define GPIO86_nPCE_1_MD	(86 | GPIO_ALT_FN_1_OUT | GPIO_DFLT_HIGH)
 #define GPIO92_MMCDAT0_MD	(92 | GPIO_ALT_FN_1_OUT)
+#define GPIO95_KP_MKIN6_MD	(95 | GPIO_ALT_FN_3_IN)
+#define GPIO96_KP_DKIN3_MD	(96 | GPIO_ALT_FN_1_IN)
+#define GPIO97_KP_MKIN3_MD	(97 | GPIO_ALT_FN_3_IN)
+#define GPIO100_KP_MKIN0_MD	(100 | GPIO_ALT_FN_1_IN)
+#define GPIO101_KP_MKIN1_MD	(101 | GPIO_ALT_FN_1_IN)
 #define GPIO102_nPCE_1_MD	(102 | GPIO_ALT_FN_1_OUT)
+#define GPIO102_KP_MKIN2_MD	(102 | GPIO_ALT_FN_1_IN)
+#define GPIO103_KP_MKOUT0_MD	(103 | GPIO_ALT_FN_2_OUT)
 #define GPIO104_pSKTSEL_MD	(104 | GPIO_ALT_FN_1_OUT)
+#define GPIO104_KP_MKOUT1_MD	(104 | GPIO_ALT_FN_2_OUT)
+#define GPIO105_KP_MKOUT2_MD	(105 | GPIO_ALT_FN_2_OUT)
+#define GPIO106_KP_MKOUT3_MD	(106 | GPIO_ALT_FN_2_OUT)
+#define GPIO107_KP_MKOUT4_MD	(107 | GPIO_ALT_FN_2_OUT)
+#define GPIO108_KP_MKOUT5_MD	(108 | GPIO_ALT_FN_2_OUT)
 #define GPIO109_MMCDAT1_MD	(109 | GPIO_ALT_FN_1_OUT)
 #define GPIO110_MMCDAT2_MD	(110 | GPIO_ALT_FN_1_OUT)
 #define GPIO110_MMCCS0_MD	(110 | GPIO_ALT_FN_1_OUT)
@@ -1593,6 +1657,7 @@
 #define PWER_GPIO14	PWER_GPIO (14)	/* GPIO [14] wake-up enable        */
 #define PWER_GPIO15	PWER_GPIO (15)	/* GPIO [15] wake-up enable        */
 #define PWER_RTC	0x80000000	/* RTC alarm wake-up enable        */
+#define PWER_WEP1	0x40000000	/* RTC alarm wake-up enable        */
 
 
 /*
@@ -1610,10 +1675,10 @@
 #define SSCR0_National	(0x2 << 4)	/* National Microwire */
 #define SSCR0_ECS	(1 << 6)	/* External clock select */
 #define SSCR0_SSE	(1 << 7)	/* Synchronous Serial Port Enable */
-#if defined(CONFIG_PXA25x)
+#if defined(CONFIG_PXA25x) && !defined(CONFIG_PXA26x)
 #define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
-#elif defined(CONFIG_PXA27x)
+#elif defined(CONFIG_PXA27x) || defined(CONFIG_PXA26x)
 #define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */
 #define SSCR0_EDSS	(1 << 20)	/* Extended data size select */
@@ -1677,18 +1742,18 @@
 #define SSSR_PINT		(1 << 18)	/* Peripheral Trailing Byte Interrupt */
 
 #define SSPSP_FSRT		(1 << 25)	/* Frame Sync Relative Timing */
-#define SSPSP_DMYSTOP(x)	((x) << 23)	/* Dummy Stop */
-#define SSPSP_SFRMWDTH(x)	((x) << 16)	/* Serial Frame Width */
-#define SSPSP_SFRMDLY(x)	((x) << 9)	/* Serial Frame Delay */
-#define SSPSP_DMYSTRT(x)	((x) << 7)	/* Dummy Start */
-#define SSPSP_STRTDLY(x)	((x) << 4)	/* Start Delay */
+#define SSPSP_DMYSTOP(x)	(x << 23)	/* Dummy Stop */
+#define SSPSP_SFRMWDTH(x)	(x << 16)	/* Serial Frame Width */
+#define SSPSP_SFRMDLY(x)	(x << 9)	/* Serial Frame Delay */
+#define SSPSP_DMYSTRT(x)	(x << 7)	/* Dummy Start */
+#define SSPSP_STRTDLY(x)	(x << 4)	/* Start Delay */
 #define SSPSP_ETDS			(1 << 3)	/* End of Transfer data State */
 #define SSPSP_SFRMP			(1 << 2)	/* Serial Frame Polarity */
-#define SSPSP_SCMODE(x)		((x) << 0)	/* Serial Bit Rate Clock Mode */
+#define SSPSP_SCMODE(x)		(x << 0)	/* Serial Bit Rate Clock Mode */
 
-#define SSACD_SCDB		(1 << 3)	/* SSPSYSCLK Divider Bypass */
-#define SSACD_ACPS(x)		((x) << 4)	/* Audio clock PLL select */
-#define SSACD_ACDS(x)		((x) << 0)	/* Audio clock divider select */
+#define SSACD_ACDS(x)		(x)	/* Audio Clock Divider Select */
+#define SSACD_SCDB		(1 << 3)	/* SSPSYSCLK Divider Bypass (SSCR0_ADC must be set) */
+#define SSACD_ACPS(x)		((x) << 4)	/* Audio Clock PLL Select */
 
 #define SSCR0_P1	__REG(0x41000000)  /* SSP Port 1 Control Register 0 */
 #define SSCR1_P1	__REG(0x41000004)  /* SSP Port 1 Control Register 1 */
@@ -1787,6 +1852,113 @@
 #define MMC_RXFIFO	__REG(0x41100040)  /* Receive FIFO (read only) */
 #define MMC_TXFIFO	__REG(0x41100044)  /* Transmit FIFO (write only) */
 
+#define MMC_STRPCL_STRT_CLK     (1 << 1)        /* Start the MMC clock */
+#define MMC_STRPCL_STOP_CLK     (1 << 0)        /* Stop the MMC clock */
+
+#define MMC_STAT_SDIO_SUSPEND_ACK (1 << 16)     /* SDIO data transfer has been
+                                                   suspended by SDIO card */
+#define MMC_STAT_SDIO_INT       (1 << 15)       /* SDIO Interrupt occured */
+#define MMC_STAT_RD_STALLED     (1 << 14)       /* Read transfer stalled */
+#define MMC_STAT_END_CMD_RES    (1 << 13)       /* Command and response 
+                                                   sequence has completed */
+#define MMC_STAT_PRG_DONE       (1 << 12)       /* Card has finished programming
+                                                   and is not busy */
+#define MMC_STAT_DATA_TRAN_DONE (1 << 11)       /* Data transmission to card
+                                                   has been completed */
+#define MMC_STAT_SPI_WR_ERR     (1 << 10)       /* Write data rejected by card
+                                                   due to a Write Error */
+#define MMC_STAT_FLASH_ERR      (1 << 9)        /* Flash programming error
+                                                   occurred */
+#define MMC_STAT_CLK_EN         (1 << 8)        /* MMC/SDIO clock is on */
+#define MMC_STAT_RES_CRC_ERR    (1 << 5)        /* Response CRC error */
+#define MMC_STAT_DAT_ERR_TOKEN  (1 << 4)        /* SPI data error token recv*/
+#define MMC_STAT_CRC_RD_ERR     (1 << 3)        /* CRC error on receive */
+#define MMC_STAT_CRC_WR_ERR     (1 << 2)        /* Write data rejected due to
+                                                   CRC error */
+#define MMC_STAT_TIME_OUT_RES   (1 << 1)        /* Card response timed out */
+#define MMC_STAT_TIME_OUT_READ  (1 << 0)        /* Card read data timed out*/
+#define MMC_STAT_ALL            (0x1ffff)
+
+#define MMC_CLKRT_FREQ          (7 << 0)        /* Clock Frequency: */
+#define MMC_CLKRT_FREQ_19_5MHZ  (0 << 0)        /*      19.5 MHz */
+#define MMC_CLKRT_FREQ_9_75MHZ  (1 << 0)        /*      9.75 MHz */
+#define MMC_CLKRT_FREQ_4_88MHZ  (2 << 0)        /*      4.88 MHz */
+#define MMC_CLKRT_FREQ_2_44MHZ  (3 << 0)        /*      2.44 MHz */
+#define MMC_CLKRT_FREQ_1_22MHZ  (4 << 0)        /*      1.22 MHz */
+#define MMC_CLKRT_FREQ_609KHZ   (5 << 0)        /*      609 KHz */
+#define MMC_CLKRT_FREQ_304KHZ   (6 << 0)        /*      304 KHz */
+
+#define MMC_SPI_CS_ADDRESS      (1 << 3)        /* Enable CS1 or CS0 */
+#define MMC_SPI_CS_EN           (1 << 2)        /* Enable SPI Chip Select */
+#define MMC_SPI_CRC_EN          (1 << 1)        /* Enable CRC generation and
+                                                   verification */
+#define MMC_SPI_MODE            (1 << 0)        /* Enable SPI mode */
+
+#define MMC_CMDAT_SDIO_RESUME   (1 << 13)       /* SDIO CMD52, resume a
+                                                   suspended data transfer */
+#define MMC_CMDAT_SDIO_SUSPEND  (1 << 12)       /* SDIO CMD52, suspend current
+                                                   data transfer */
+#define MMC_CMDAT_SDIO_INT_EN   (1 << 11)       /* Enable check for SDIO
+                                                   interrupt from card */
+#define MMC_CMDAT_STOP_TRAN     (1 << 10)       /* Stop data transmission */
+#define MMC_CMDAT_SD_4DAT       (1 << 8)        /* Enable 4-bit data transfer*/
+
+
+#define MMC_CMDAT_DMA_EN        (1 << 7)        /* Enable DMA access to FIFO */
+#define MMC_CMDAT_INIT          (1 << 6)        /* Precede command sequence
+                                                   with 80 clocks, for
+                                                   initialisation */
+#define MMC_CMDAT_BUSY          (1 << 5)        /* Specifies whether a busy
+                                                   signal possible after the
+                                                   current command */
+#define MMC_CMDAT_STRM_BLK      (1 << 4)        /* Data transfer is in
+                                                   stream mode */
+#define MMC_CMDAT_WR            (1 << 3)        /* Data transfer is a write
+                                                   operation */
+#define MMC_CMDAT_RD            (0 << 3)        /* Data transfer is a read
+                                                   operation */
+#define MMC_CMDAT_DATA_EN       (1 << 2)        /* Current command includes
+                                                   a data transfer */
+#define MMC_CMDAT_RES_TYPE      (3 << 0)        /* Command reponse format */
+#define MMC_CMDAT_RES_NORESP    (0 << 0)        /*      No response */
+#define MMC_CMDAT_RES_RESP      (1 << 0)        /*      Response with CRC */
+#define MMC_CMDAT_RES_R2        (2 << 0)        /*      CID/CSD response */
+#define MMC_CMDAT_RES_R3        (3 << 0)        /*      R3 response */
+
+#define MMC_RESTO_MASK          (0x0000007f)
+#define MMC_RDTO_MASK           (0x0000ffff)
+#define MMC_BLKLEN_MASK         (0x00000fff)
+#define MMC_BLKLEN_MASK         (0x00000fff)
+#define MMC_NOB_MASK            (0x0000ffff)
+#define MMC_PRTBUF_PRT_FULL     (1 << 0)        /* Buffer is partially full */
+
+#define MMC_I_SDIO_SUSPEND_ACK  (1 << 12)       /* SDIO data transfer has been
+                                                   suspended by SDIO card */
+#define MMC_I_SDIO_INT          (1 << 11)       /* An SDIO interrupt occured*/
+#define MMC_I_RD_STALLED        (1 << 10)       /* Card has stalled read */
+#define MMC_I_RES_ERR           (1 << 9)        /* Error occured on the resp */
+#define MMC_I_DAT_ERR           (1 << 8)        /* Data error occurred during
+                                                   data transmission */
+#define MMC_I_TINT              (1 << 7)        /* Transmit Interrupt */
+#define MMC_I_TXFIFO_WR_REQ     (1 << 6)        /* Tx FIFO Write Request */
+#define MMC_I_TXFIFO_RD_REQ     (1 << 5)        /* Rx FIFO Read Request */
+#define MMC_I_CLK_IS_OFF        (1 << 4)        /* Clock is Off */
+#define MMC_I_STOP_CMD          (1 << 3)        /* MMC is ready for the stop
+                                                   transmission command */
+#define MMC_I_END_CMD_RES       (1 << 2)        /* End Command Response */
+#define MMC_I_PRG_DONE          (1 << 1)        /* Programming Done */
+#define MMC_I_DATA_TRAN_DONE    (1 << 0)        /* Data Transfer Done */
+
+#if 0
+#error This conflicts with <linux/mmc/mmc.h>. Consider using PXA-specific prefixes.
+#define MMC_CMD_MASK            (0x0000003f)
+#define MMC_ARGH_MASK           (0x0000ffff)
+#define MMC_ARGL_MASK           (0x0000ffff)
+#endif
+
+#define MMC_RDWAIT_START        (1 << 1)        /* Restart the read data tran*/
+#define MMC_RDWAIT_EN           (1 << 0)        /* RD_WAIT enable */
+
 
 /*
  * Core Clock
@@ -1797,7 +1969,7 @@
 #define OSCC		__REG(0x41300008)  /* Oscillator Configuration Register */
 #define CCSR		__REG(0x4130000C)  /* Core Clock Status Register */
 
-#define CCCR_N_MASK	0x0380		/* Run Mode Frequency to Turbo Mode Frequency Multiplier */
+#define CCCR_N_MASK	0x0780		/* Run Mode Frequency to Turbo Mode Frequency Multiplier */
 #define CCCR_M_MASK	0x0060		/* Memory Frequency to Run Mode Frequency Multiplier */
 #define CCCR_L_MASK	0x001f		/* Crystal Frequency to Memory Frequency Multiplier */
 
@@ -1831,6 +2003,7 @@
 #define CKEN1_PWM1	(1 << 1)	/* PWM1 Clock Enable */
 #define CKEN0_PWM0	(1 << 0)	/* PWM0 Clock Enable */
 
+#define OSCC_TOUT_EN    (1 << 2)	/* 32.768kHz Output enable */
 #define OSCC_OON	(1 << 1)	/* 32.768kHz OON (write-once only bit) */
 #define OSCC_OOK	(1 << 0)	/* 32.768kHz OOK (read-only bit) */
 
@@ -1846,6 +2019,8 @@
 #define DFBR0		__REG(0x44000020)  /* DMA Channel 0 Frame Branch Register */
 #define DFBR1		__REG(0x44000024)  /* DMA Channel 1 Frame Branch Register */
 #define LCSR		__REG(0x44000038)  /* LCD Controller Status Register */
+#define LCSR0		__REG(0x44000038)  /* LCD Controller Status Register */
+#define LCSR1		__REG(0x44000034)  /* LCD Controller Status Register */
 #define LIIDR		__REG(0x4400003C)  /* LCD Controller Interrupt ID Register */
 #define TMEDRGBR	__REG(0x44000040)  /* TMED RGB Seed Register */
 #define TMEDCR		__REG(0x44000044)  /* TMED Control Register */
@@ -1855,6 +2030,17 @@
 #define LCCR3_4BPP (2 << 24)
 #define LCCR3_8BPP (3 << 24)
 #define LCCR3_16BPP (4 << 24)
+#define LCCR3_18BPP (6 << 24)
+#define LCCR3_19BPP (8 << 24)
+#define LCCR3_24BPP (9 << 24)
+#define LCCR3_25BPP (10<< 24)
+
+#ifdef CONFIG_PXA27x
+#define LCCR3_18BPP (6 << 24)
+#define LCCR3_19BPP (8 << 24)
+#define LCCR3_24BPP (9 << 24)
+#define LCCR3_25BPP (10<< 24)
+#endif
 
 #define FDADR0		__REG(0x44000200)  /* DMA Channel 0 Frame Descriptor Address Register */
 #define FSADR0		__REG(0x44000204)  /* DMA Channel 0 Frame Source Address Register */
@@ -2019,6 +2205,206 @@
 
 #define LDCMD_PAL	(1 << 26)	/* instructs DMA to load palette buffer */
 
+#ifdef CONFIG_PXA27x
+/* Overlay1 & Overlay2 & Hardware Cursor */
+#define LCSR1_SOF1     (1 << 0)
+#define LCSR1_SOF2     (1 << 1)
+#define LCSR1_SOF3     (1 << 2)
+#define LCSR1_SOF4     (1 << 3)
+#define LCSR1_SOF5     (1 << 4)
+#define LCSR1_SOF6     (1 << 5)
+
+#define LCSR1_EOF1     (1 << 8)
+#define LCSR1_EOF2     (1 << 9)
+#define LCSR1_EOF3     (1 << 10)
+#define LCSR1_EOF4     (1 << 11)
+#define LCSR1_EOF5     (1 << 12)
+#define LCSR1_EOF6     (1 << 13)
+
+#define LCSR1_BS1      (1 << 16)
+#define LCSR1_BS2      (1 << 17)
+#define LCSR1_BS3      (1 << 18)
+#define LCSR1_BS4      (1 << 19)
+#define LCSR1_BS5      (1 << 20)
+#define LCSR1_BS6      (1 << 21)
+
+#define LCSR1_IU2      (1 << 25)
+#define LCSR1_IU3      (1 << 26)
+#define LCSR1_IU4      (1 << 27)
+#define LCSR1_IU5      (1 << 28)
+#define LCSR1_IU6      (1 << 29)
+
+#define LDCMD_SOFINT   (1 << 22)
+#define LDCMD_EOFINT   (1 << 21)
+
+#define LCCR4_13M_PCD_EN	(1<<25)          /* 13M PCD enable */
+#define LCCR4_PCDDIV		(1<<31)          /* PCD selection */
+
+#define LCCR5_SOFM1    (1<<0)          /* Start Of Frame Mask for Overlay 1 (channel 1) */
+#define LCCR5_SOFM2    (1<<1)          /* Start Of Frame Mask for Overlay 2 (channel 2) */
+#define LCCR5_SOFM3    (1<<2)          /* Start Of Frame Mask for Overlay 2 (channel 3) */
+#define LCCR5_SOFM4    (1<<3)          /* Start Of Frame Mask for Overlay 2 (channel 4) */
+#define LCCR5_SOFM5    (1<<4)          /* Start Of Frame Mask for cursor (channel 5) */
+#define LCCR5_SOFM6    (1<<5)          /* Start Of Frame Mask for command data (channel 6) */
+
+#define LCCR5_EOFM1    (1<<8)          /* End Of Frame Mask for Overlay 1 (channel 1) */
+#define LCCR5_EOFM2    (1<<9)          /* End Of Frame Mask for Overlay 2 (channel 2) */
+#define LCCR5_EOFM3    (1<<10)         /* End Of Frame Mask for Overlay 2 (channel 3) */
+#define LCCR5_EOFM4    (1<<11)         /* End Of Frame Mask for Overlay 2 (channel 4) */
+#define LCCR5_EOFM5    (1<<12)         /* End Of Frame Mask for cursor (channel 5) */
+#define LCCR5_EOFM6    (1<<13)         /* End Of Frame Mask for command data (channel 6) */
+
+#define LCCR5_BSM1     (1<<16)         /* Branch mask for Overlay 1 (channel 1) */
+#define LCCR5_BSM2     (1<<17)         /* Branch mask for Overlay 2 (channel 2) */
+#define LCCR5_BSM3     (1<<18)         /* Branch mask for Overlay 2 (channel 3) */
+#define LCCR5_BSM4     (1<<19)         /* Branch mask for Overlay 2 (channel 4) */
+#define LCCR5_BSM5     (1<<20)         /* Branch mask for cursor (channel 5) */
+#define LCCR5_BSM6     (1<<21)         /* Branch mask for data command  (channel 6) */
+
+#define LCCR5_IUM1     (1<<24)         /* Input FIFO Underrun Mask for Overlay 1  */
+#define LCCR5_IUM2     (1<<25)         /* Input FIFO Underrun Mask for Overlay 2  */
+#define LCCR5_IUM3     (1<<26)         /* Input FIFO Underrun Mask for Overlay 2  */
+#define LCCR5_IUM4     (1<<27)         /* Input FIFO Underrun Mask for Overlay 2  */
+#define LCCR5_IUM5     (1<<28)         /* Input FIFO Underrun Mask for cursor */
+#define LCCR5_IUM6     (1<<29)         /* Input FIFO Underrun Mask for data command */
+
+#define OVL1C1_O1EN    (1<<31)         /* Enable bit for Overlay 1 */
+#define OVL2C1_O2EN    (1<<31)         /* Enable bit for Overlay 2 */
+#define CCR_CEN		(1<<31)         /* Enable bit for Cursor */
+
+/* LCD registers */
+#define LCCR4          __REG(0x44000010)  /* LCD Controller Control Register 4 */
+#define LCCR5          __REG(0x44000014)  /* LCD Controller Control Register 5 */
+#define FBR0           __REG(0x44000020)  /* DMA Channel 0 Frame Branch Register */
+#define FBR1           __REG(0x44000024)  /* DMA Channel 1 Frame Branch Register */
+#define FBR2           __REG(0x44000028)  /* DMA Channel 2 Frame Branch Register */
+#define FBR3           __REG(0x4400002C)  /* DMA Channel 3 Frame Branch Register */
+#define FBR4           __REG(0x44000030)  /* DMA Channel 4 Frame Branch Register */
+#define FDADR2         __REG(0x44000220)  /* DMA Channel 2 Frame Descriptor Address Register */
+#define FSADR2         __REG(0x44000224)  /* DMA Channel 2 Frame Source Address Register */
+#define FIDR2          __REG(0x44000228)  /* DMA Channel 2 Frame ID Register */
+#define LDCMD2         __REG(0x4400022C)  /* DMA Channel 2 Command Register */
+#define FDADR3         __REG(0x44000230)  /* DMA Channel 3 Frame Descriptor Address Register */
+#define FSADR3         __REG(0x44000234)  /* DMA Channel 3 Frame Source Address Register */
+#define FIDR3          __REG(0x44000238)  /* DMA Channel 3 Frame ID Register */
+#define LDCMD3         __REG(0x4400023C)  /* DMA Channel 3 Command Register */
+#define FDADR4         __REG(0x44000240)  /* DMA Channel 4 Frame Descriptor Address Register */
+#define FSADR4         __REG(0x44000244)  /* DMA Channel 4 Frame Source Address Register */
+#define FIDR4          __REG(0x44000248)  /* DMA Channel 4 Frame ID Register */
+#define LDCMD4         __REG(0x4400024C)  /* DMA Channel 4 Command Register */
+#define FDADR5         __REG(0x44000250)  /* DMA Channel 5 Frame Descriptor Address Register */
+#define FSADR5         __REG(0x44000254)  /* DMA Channel 5 Frame Source Address Register */
+#define FIDR5          __REG(0x44000258)  /* DMA Channel 5 Frame ID Register */
+#define LDCMD5         __REG(0x4400025C)  /* DMA Channel 5 Command Register */
+
+#define OVL1C1         __REG(0x44000050)  /* Overlay 1 Control Register 1 */
+#define OVL1C2         __REG(0x44000060)  /* Overlay 1 Control Register 2 */
+#define OVL2C1         __REG(0x44000070)  /* Overlay 2 Control Register 1 */
+#define OVL2C2         __REG(0x44000080)  /* Overlay 2 Control Register 2 */
+#define CCR            __REG(0x44000090)  /* Cursor Control Register */
+
+#define FBR5           __REG(0x44000110)  /* DMA Channel 5 Frame Branch Register */
+#define FBR6           __REG(0x44000114)  /* DMA Channel 6 Frame Branch Register */
+#endif
+
+/* Overlay1 & Overlay2 & Hardware Cursor */
+#define LCSR1_SOF1	(1 << 0)
+#define LCSR1_SOF2	(1 << 1)
+#define LCSR1_SOF3	(1 << 2)
+#define LCSR1_SOF4	(1 << 3)
+#define LCSR1_SOF5	(1 << 4)
+#define LCSR1_SOF6	(1 << 5)
+
+#define LCSR1_EOF1	(1 << 8)
+#define LCSR1_EOF2	(1 << 9)
+#define LCSR1_EOF3	(1 << 10)
+#define LCSR1_EOF4	(1 << 11)
+#define LCSR1_EOF5	(1 << 12)
+#define LCSR1_EOF6	(1 << 13)
+
+#define LCSR1_BS1	(1 << 16)
+#define LCSR1_BS2	(1 << 17)
+#define LCSR1_BS3	(1 << 18)
+#define LCSR1_BS4	(1 << 19)
+#define LCSR1_BS5	(1 << 20)
+#define LCSR1_BS6	(1 << 21)
+
+#define LCSR1_IU2	(1 << 25)
+#define LCSR1_IU3	(1 << 26)
+#define LCSR1_IU4	(1 << 27)
+#define LCSR1_IU5	(1 << 28)
+#define LCSR1_IU6	(1 << 29)
+
+#define LDCMD_SOFINT	(1 << 22)
+#define LDCMD_EOFINT	(1 << 21)
+
+
+#define LCCR5_SOFM1	(1<<0)		/* Start Of Frame Mask for Overlay 1 (channel 1) */
+#define LCCR5_SOFM2	(1<<1)		/* Start Of Frame Mask for Overlay 2 (channel 2) */
+#define LCCR5_SOFM3	(1<<2)		/* Start Of Frame Mask for Overlay 2 (channel 3) */
+#define LCCR5_SOFM4	(1<<3)		/* Start Of Frame Mask for Overlay 2 (channel 4) */
+#define LCCR5_SOFM5	(1<<4)		/* Start Of Frame Mask for cursor (channel 5) */
+#define LCCR5_SOFM6	(1<<5)		/* Start Of Frame Mask for command data (channel 6) */
+
+#define LCCR5_EOFM1	(1<<8)		/* End Of Frame Mask for Overlay 1 (channel 1) */
+#define LCCR5_EOFM2	(1<<9)		/* End Of Frame Mask for Overlay 2 (channel 2) */
+#define LCCR5_EOFM3	(1<<10)		/* End Of Frame Mask for Overlay 2 (channel 3) */
+#define LCCR5_EOFM4	(1<<11)		/* End Of Frame Mask for Overlay 2 (channel 4) */
+#define LCCR5_EOFM5	(1<<12)		/* End Of Frame Mask for cursor (channel 5) */
+#define LCCR5_EOFM6	(1<<13)		/* End Of Frame Mask for command data (channel 6) */
+
+#define LCCR5_BSM1	(1<<16)		/* Branch mask for Overlay 1 (channel 1) */
+#define LCCR5_BSM2	(1<<17)		/* Branch mask for Overlay 2 (channel 2) */
+#define LCCR5_BSM3	(1<<18)		/* Branch mask for Overlay 2 (channel 3) */
+#define LCCR5_BSM4	(1<<19)		/* Branch mask for Overlay 2 (channel 4) */
+#define LCCR5_BSM5	(1<<20)		/* Branch mask for cursor (channel 5) */
+#define LCCR5_BSM6	(1<<21)		/* Branch mask for data command  (channel 6) */
+
+#define LCCR5_IUM1	(1<<24)		/* Input FIFO Underrun Mask for Overlay 1  */
+#define LCCR5_IUM2	(1<<25)		/* Input FIFO Underrun Mask for Overlay 2  */
+#define LCCR5_IUM3	(1<<26)		/* Input FIFO Underrun Mask for Overlay 2  */
+#define LCCR5_IUM4	(1<<27)		/* Input FIFO Underrun Mask for Overlay 2  */
+#define LCCR5_IUM5	(1<<28)		/* Input FIFO Underrun Mask for cursor */
+#define LCCR5_IUM6	(1<<29)		/* Input FIFO Underrun Mask for data command */
+
+#define OVL1C1_O1EN	(1<<31)		/* Enable bit for Overlay 1 */
+#define OVL2C1_O2EN	(1<<31)		/* Enable bit for Overlay 2 */
+#define CCR_CEN		(1<<31)		/* Enable bit for Cursor */
+
+/* LCD registers */
+#define LCCR4		__REG(0x44000010)  /* LCD Controller Control Register 4 */
+#define LCCR5		__REG(0x44000014)  /* LCD Controller Control Register 5 */
+#define FBR0		__REG(0x44000020)  /* DMA Channel 0 Frame Branch Register */
+#define FBR1		__REG(0x44000024)  /* DMA Channel 1 Frame Branch Register */
+#define FBR2		__REG(0x44000028)  /* DMA Channel 2 Frame Branch Register */
+#define FBR3		__REG(0x4400002C)  /* DMA Channel 3 Frame Branch Register */
+#define FBR4		__REG(0x44000030)  /* DMA Channel 4 Frame Branch Register */
+#define FDADR2		__REG(0x44000220)  /* DMA Channel 2 Frame Descriptor Address Register */
+#define FSADR2		__REG(0x44000224)  /* DMA Channel 2 Frame Source Address Register */
+#define FIDR2		__REG(0x44000228)  /* DMA Channel 2 Frame ID Register */
+#define LDCMD2		__REG(0x4400022C)  /* DMA Channel 2 Command Register */
+#define FDADR3		__REG(0x44000230)  /* DMA Channel 3 Frame Descriptor Address Register */
+#define FSADR3		__REG(0x44000234)  /* DMA Channel 3 Frame Source Address Register */
+#define FIDR3		__REG(0x44000238)  /* DMA Channel 3 Frame ID Register */
+#define LDCMD3		__REG(0x4400023C)  /* DMA Channel 3 Command Register */
+#define FDADR4		__REG(0x44000240)  /* DMA Channel 4 Frame Descriptor Address Register */
+#define FSADR4		__REG(0x44000244)  /* DMA Channel 4 Frame Source Address Register */
+#define FIDR4		__REG(0x44000248)  /* DMA Channel 4 Frame ID Register */
+#define LDCMD4		__REG(0x4400024C)  /* DMA Channel 4 Command Register */
+#define FDADR5		__REG(0x44000250)  /* DMA Channel 5 Frame Descriptor Address Register */
+#define FSADR5		__REG(0x44000254)  /* DMA Channel 5 Frame Source Address Register */
+#define FIDR5		__REG(0x44000258)  /* DMA Channel 5 Frame ID Register */
+#define LDCMD5		__REG(0x4400025C)  /* DMA Channel 5 Command Register */
+
+#define OVL1C1		__REG(0x44000050)  /* Overlay 1 Control Register 1 */
+#define OVL1C2		__REG(0x44000060)  /* Overlay 1 Control Register 2 */
+#define OVL2C1		__REG(0x44000070)  /* Overlay 2 Control Register 1 */
+#define OVL2C2		__REG(0x44000080)  /* Overlay 2 Control Register 2 */
+#define CCR		__REG(0x44000090)  /* Cursor Control Register */
+
+#define FBR5		__REG(0x44000110)  /* DMA Channel 5 Frame Branch Register */
+#define FBR6		__REG(0x44000114)  /* DMA Channel 6 Frame Branch Register */
+
 /*
  * Memory controller
  */
@@ -2041,6 +2427,17 @@
 #define MDMRS		__REG(0x48000040)  /* MRS value to be written to SDRAM */
 #define BOOT_DEF	__REG(0x48000044)  /* Read-Only Boot-Time Register. Contains BOOT_SEL and PKG_SEL */
 
+/* memory strength */
+#define BSCNTR0		__REG(0x4800004C)
+#define BSCNTR1		__REG(0x48000050)
+#define LCDBSCNTR	__REG(0x48000054)
+#define	MDMRSLP		__REG(0x48000058)  /* Low-power mode */
+#define BSCNTR2		__REG(0x4800005C)
+#define BSCNTR3		__REG(0x48000060)
+
+#define MDMPEN0		(1<<15)
+#define MDMPEN2		(1<<31)
+
 /*
  * More handy macros for PCMCIA
  *
@@ -2053,6 +2450,27 @@
 /* MECR register defines */
 #define MECR_NOS	(1 << 0)	/* Number Of Sockets: 0 -> 1 sock, 1 -> 2 sock */
 #define MECR_CIT	(1 << 1)	/* Card Is There: 0 -> no card, 1 -> card inserted */
+
+#define MDCNFG_DE0	(1 << 0)	/* SDRAM enable for partition 0 */
+#define MDCNFG_DE1	(1 << 1)	/* SDRAM enable for partition 1 */
+#define MDCNFG_DWID0	(1 << 2)	/* SDRAM data bus width for partition pair 0/1 */
+#define MDCNFG_DCAC0	(1 << 3)	/* Number of Column Address bits for partition pair 0/1 */
+#define MDCNFG_DRAC0	(1 << 5)	/* SDRAM row address bit count for partition pair 0/1 */
+#define MDCNFG_DNB0	(1 << 7)	/* Number of banks in lower partition pair */
+#define MDCNFG_DTC0	(1 << 8)	/* Timing Category for SDRAM pair 0/1 */
+#define MDCNFG_DADDR0	(1 << 10)	/* Use alternate addressing for pair 0/1 */
+#define MDCNFG_DLATCH0	(1 << 11)	/* Return data from SDRAM latching scheme for pair 0/1 */
+#define MDCNFG_DSA11110	(1 << 12)	/* Use SA1111 Addressing Muxing Mode for pair 0/1 */
+#define MDCNFG_DE2	(1 << 16)	/* SDRAM enable for partition 2 */
+#define MDCNFG_DE3	(1 << 17)	/* SDRAM enable for partition 3 */
+#define MDCNFG_DWID2	(1 << 18)	/* SDRAM data bus width for partition pair 2/3 */
+#define MDCNFG_DCAC2	(1 << 19)	/* Number of Column Address bits for partition pair 2/3 */
+#define MDCNFG_DRAC2	(1 << 21)	/* SDRAM row address bit count for partition pair 2/3 */
+#define MDCNFG_DNB2	(1 << 23)	/* Number of banks in upper partition pair */
+#define MDCNFG_DTC2	(1 << 24)	/* Timing Category for SDRAM pair 2/3 */
+#define MDCNFG_DADDR2	(1 << 26)	/* Use alternate addressing for pair 2/3 */
+#define MDCNFG_DLATCH2	(1 << 27)	/* Return data from SDRAM latching scheme for pair 2/3 */
+#define MDCNFG_DSA11112	(1 << 28)	/* Use SA1111 Addressing Muxing Mode for pair 2/3 */
 
 #define MDREFR_K0DB4	(1 << 29)	/* SDCLK0 Divide by 4 Control/Status */
 #define MDREFR_K2FREE	(1 << 25)	/* SDRAM Free-Running Control */
@@ -2146,10 +2564,40 @@
 #define UHC_BASE_PHYS	(0x4C000000)
 #define UHCREV		__REG(0x4C000000) /* UHC HCI Spec Revision */
 #define UHCHCON		__REG(0x4C000004) /* UHC Host Control Register */
+#define UHCHCON_RWE     (0x1 << 10)     /* Remote Wakeup Enable */
+#define UHCHCON_RWC     (0x1 << 9)      /* Remote Wakeup Connected */
+#define UHCHCON_IR      (0x1 << 8)      /* Remote Interrupt Routing */
+/* Host Controller Functional State */
+#define UHCHCON_HCFS_USBRESET           (0x0)
+#define UHCHCON_HCFS_USBRESUME          (0x1 << 6)
+#define UHCHCON_HCFS_USBOPERATIONAL     (0x2 << 6)
+#define UHCHCON_HCFS_USBSUSPEND         (0x3 << 6)
+//
+#define UHCHCON_BLE     (0x1 << 5)      /* Bulk List Enable */
+#define UHCHCON_CLE     (0x1 << 4)      /* Control List Enable */
+#define UHCHCON_IE      (0x1 << 3)      /* Isochronous Enable */
+#define UHCHCON_PLE     (0x1 << 2)      /* Periodic List Enable */
+/* Control Bulk Service Ratio */
+#define UHCHCON_CBSR11  (0x0 << 0)
+#define UHCHCON_CBSR21  (0x1 << 0)
+#define UHCHCON_CBSR31  (0x2 << 0)
+#define UHCHCON_CBSR41  (0x3 << 0)
+//
 #define UHCCOMS		__REG(0x4C000008) /* UHC Command Status Register */
 #define UHCINTS		__REG(0x4C00000C) /* UHC Interrupt Status Register */
 #define UHCINTE		__REG(0x4C000010) /* UHC Interrupt Enable */
 #define UHCINTD		__REG(0x4C000014) /* UHC Interrupt Disable */
+#define UHCINT_MIE      (0x1 << 31)
+#define UHCINT_OC       (0x1 << 30)
+#define UHCINT_RHSC     (0x1 << 6)
+#define UHCINT_FNO      (0x1 << 5)
+#define UHCINT_UE       (0x1 << 4)
+#define UHCINT_RD       (0x1 << 3)
+#define UHCINT_SF       (0x1 << 2)
+#define UHCINT_WDH      (0x1 << 1)
+#define UHCINT_SO       (0x1 << 0)
+//
+
 #define UHCHCCA		__REG(0x4C000018) /* UHC Host Controller Comm. Area */
 #define UHCPCED		__REG(0x4C00001C) /* UHC Period Current Endpt Descr */
 #define UHCCHED		__REG(0x4C000020) /* UHC Control Head Endpt Descr */
@@ -2209,6 +2657,10 @@
 #define UHCHIT          __REG(0x4C00006C) /* UHC Interrupt Test register */
 
 /* Camera Interface */
+
+#define CI_REG_SIZE    	0x40 /* 0x5000_0000 --- 0x5000_0038 * 64K */
+#define CI_REGS_PHYS   	0x50000000  /* Start phyical address of CI registers */	
+
 #define CICR0		__REG(0x50000000)
 #define CICR1		__REG(0x50000004)
 #define CICR2		__REG(0x50000008)

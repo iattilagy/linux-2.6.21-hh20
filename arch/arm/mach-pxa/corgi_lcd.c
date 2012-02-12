@@ -311,6 +311,8 @@ static struct w100_tg_info corgi_lcdtg_info = {
 	.change  = w100_lcdtg_init,
 	.suspend = w100_lcdtg_suspend,
 	.resume  = w100_lcdtg_init,
+	.blank 	 = w100_lcdtg_suspend,
+	.unblank = w100_lcdtg_init,
 };
 
 static struct w100_mem_info corgi_fb_mem = {

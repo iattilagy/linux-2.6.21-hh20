@@ -68,6 +68,8 @@ extern void bus_unregister(struct bus_type * bus);
 
 extern int __must_check bus_rescan_devices(struct bus_type * bus);
 
+extern struct bus_type *find_bus(char *name);
+
 /* iterator helpers for buses */
 
 int bus_for_each_dev(struct bus_type * bus, struct device * start, void * data,

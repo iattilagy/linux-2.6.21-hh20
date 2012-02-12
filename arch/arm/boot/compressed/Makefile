@@ -39,6 +39,9 @@ OBJS		+= head-sa1100.o
 endif
 
 ifeq ($(CONFIG_CPU_XSCALE),y)
+ifdef CONFIG_LAB_BOOTSTRAP
+OBJS		+= bootldr-xscale.o
+endif
 OBJS		+= head-xscale.o
 endif
 
@@ -46,8 +49,16 @@ ifeq ($(CONFIG_PXA_SHARPSL),y)
 OBJS		+= head-sharpsl.o
 endif
 
+ifeq ($(CONFIG_ARCH_H2200),y)
+HEAD		= head-h2200.o
+endif
+
 ifeq ($(CONFIG_ARCH_AT91RM9200),y)
 OBJS		+= head-at91rm9200.o
+endif
+
+ifeq ($(CONFIG_LAB_BOOTSTRAP),y)
+OBJS            += tagizer.o
 endif
 
 ifeq ($(CONFIG_CPU_BIG_ENDIAN),y)
@@ -67,8 +78,12 @@ ifeq ($(CONFIG_ZBOOT_ROM),y)
 ZTEXTADDR	:= $(CONFIG_ZBOOT_ROM_TEXT)
 ZBSSADDR	:= $(CONFIG_ZBOOT_ROM_BSS)
 else
-ZTEXTADDR	:= 0
-ZBSSADDR	:= ALIGN(4)
+	ifeq ($(CONFIG_LAB_BOOTSTRAP),y)
+		ZTEXTADDR	:= 0xA0008000
+	else
+		ZTEXTADDR	:= 0
+	endif
+	ZBSSADDR	:= ALIGN(4)
 endif
 
 SEDFLAGS	= s/TEXT_START/$(ZTEXTADDR)/;s/BSS_START/$(ZBSSADDR)/
@@ -81,7 +96,7 @@ EXTRA_AFLAGS  :=
 # Supply ZRELADDR, INITRD_PHYS and PARAMS_PHYS to the decompressor via
 # linker symbols.  We only define initrd_phys and params_phys if the
 # machine class defined the corresponding makefile variable.
-LDFLAGS_vmlinux := --defsym zreladdr=$(ZRELADDR)
+LDFLAGS_vmlinux := --defsym zreladdr="$(ZRELADDR)"
 ifneq ($(INITRD_PHYS),)
 LDFLAGS_vmlinux += --defsym initrd_phys=$(INITRD_PHYS)
 endif
@@ -112,3 +127,7 @@ $(obj)/vmlinux.lds: $(obj)/vmlinux.lds.in arch/arm/boot/Makefile .config
 
 $(obj)/misc.o: $(obj)/misc.c include/asm/arch/uncompress.h lib/inflate.c
 
+# Traditional preprocessor just plain sucks
+$(obj)/bootldr-xscale.o: EXTRA_AFLAGS :=
+# LAB depends on all #include'd files
+$(obj)/bootldr-xscale.o: $(wildcard $(obj)/bootldr-*.S)

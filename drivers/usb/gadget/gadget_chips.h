@@ -24,7 +24,11 @@
 #ifdef CONFIG_USB_GADGET_PXA2XX
 #define	gadget_is_pxa(g)	!strcmp("pxa2xx_udc", (g)->name)
 #else
-#define	gadget_is_pxa(g)	0
+#    ifdef CONFIG_USB_GADGET_PXA27X
+#        define	gadget_is_pxa(g)	!strcmp("pxa27x_udc", (g)->name)
+#    else
+#        define	gadget_is_pxa(g)	0
+#    endif
 #endif
 
 #ifdef CONFIG_USB_GADGET_GOKU

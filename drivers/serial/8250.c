@@ -2480,6 +2480,7 @@ static struct uart_driver serial8250_reg = {
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= 64,
+	.name_base		= 0,
 	.nr			= UART_NR,
 	.cons			= SERIAL8250_CONSOLE,
 };

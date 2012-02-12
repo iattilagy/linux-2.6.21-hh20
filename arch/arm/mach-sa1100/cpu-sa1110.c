@@ -374,8 +374,12 @@ static int __init sa1110_clk_init(void)
 
 		if (machine_is_h3100())
 			name = "KM416S4030CT";
+
 		if (machine_is_jornada720())
 		        name = "K4S281632B-1H";
+
+		if (machine_is_h3600()) 
+			name = "K4S641632D";
 	}
 
 	sdram = sa1110_find_sdram(name);

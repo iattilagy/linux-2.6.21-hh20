@@ -176,8 +176,11 @@
 #define NR_IRQS			(IRQ_LOCOMO_SPI_TEND + 1)
 #elif defined(CONFIG_ARCH_LUBBOCK) || \
       defined(CONFIG_MACH_LOGICPD_PXA270) || \
-      defined(CONFIG_MACH_MAINSTONE)
+      defined(CONFIG_MACH_MAINSTONE) || \
+      defined(CONFIG_BOARD_IRQ_MAP_SMALL)
 #define NR_IRQS			(IRQ_BOARD_END)
+#elif defined(CONFIG_BOARD_IRQ_MAP_BIG)
+#define NR_IRQS			(IRQ_BOARD_START + 96)
 #else
 #define NR_IRQS			(IRQ_BOARD_START)
 #endif

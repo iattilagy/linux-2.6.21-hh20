@@ -927,6 +927,12 @@ MODULE_LICENSE ("GPL");
 #define PS3_SYSTEM_BUS_DRIVER	ps3_ohci_sb_driver
 #endif
 
+#ifdef CONFIG_ARCH_H5400
+#include "ohci-h5400.c"
+#define PLATFORM_DRIVER		ohci_h5400_driver
+#endif
+
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OF_PLATFORM_DRIVER) &&	\

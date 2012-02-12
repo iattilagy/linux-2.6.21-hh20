@@ -3849,6 +3849,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	struct usb_ep		*ep;
 	struct usb_request	*req;
 	char			*pathbuf, *p;
+	struct usb_endpoint_config ep_config;
 
 	fsg->gadget = gadget;
 	set_gadget_data(gadget, fsg);
@@ -3919,21 +3920,25 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	}
 
 	/* Find all the endpoints we will use */
+	ep_config.config = CONFIG_VALUE;
+	ep_config.interface = intf_desc.bInterfaceNumber;
+	ep_config.altinterface = intf_desc.bAlternateSetting;
+
 	usb_ep_autoconfig_reset(gadget);
-	ep = usb_ep_autoconfig(gadget, &fs_bulk_in_desc);
+	ep = usb_ep_autoconfig(gadget, &fs_bulk_in_desc, &ep_config, 1);
 	if (!ep)
 		goto autoconf_fail;
 	ep->driver_data = fsg;		// claim the endpoint
 	fsg->bulk_in = ep;
 
-	ep = usb_ep_autoconfig(gadget, &fs_bulk_out_desc);
+	ep = usb_ep_autoconfig(gadget, &fs_bulk_out_desc, &ep_config, 1);
 	if (!ep)
 		goto autoconf_fail;
 	ep->driver_data = fsg;		// claim the endpoint
 	fsg->bulk_out = ep;
 
 	if (transport_is_cbi()) {
-		ep = usb_ep_autoconfig(gadget, &fs_intr_in_desc);
+		ep = usb_ep_autoconfig(gadget, &fs_intr_in_desc, &ep_config, 1);
 		if (!ep)
 			goto autoconf_fail;
 		ep->driver_data = fsg;		// claim the endpoint

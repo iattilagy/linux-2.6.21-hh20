@@ -21,9 +21,21 @@ endif
 #   ZRELADDR == virt_to_phys(PAGE_OFFSET + TEXT_OFFSET)
 #   PARAMS_PHYS must be within 4MB of ZRELADDR
 #   INITRD_PHYS must be in RAM
+# note, we use ZRELADDR_c because mkuimage needs single hex value
+
+ifeq ($(CONFIG_TXTOFFSET_DELTA),y)
+ZRELADDR    := $(zreladdr-y)+$(CONFIG_TXTOFFSET_DELTA_VALUE)
+ZRELADDR_h  := $(subst 0x,,$(ZRELADDR))
+ZRELADDR_c  := 0x$(shell echo "ibase=16; obase=10; $(ZRELADDR_h)" | bc -l)
+else
 ZRELADDR    := $(zreladdr-y)
+ZRELADDR_c  := $(zreladdr-y)
+endif
+
 PARAMS_PHYS := $(params_phys-y)
 INITRD_PHYS := $(initrd_phys-y)
+
+
 
 export ZRELADDR INITRD_PHYS PARAMS_PHYS
 
@@ -61,7 +73,7 @@ endif
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A arm -O linux -T kernel \
-		   -C none -a $(ZRELADDR) -e $(ZRELADDR) \
+		   -C none -a $(ZRELADDR_c) -e $(ZRELADDR_c) \
 		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
 
 $(obj)/uImage:	$(obj)/zImage FORCE

@@ -51,7 +51,9 @@ obj-$(CONFIG_SOUND_EMU10K1)	+= ac97_codec.o
 obj-$(CONFIG_SOUND_BCM_CS4297A)	+= swarm_cs4297a.o
 obj-$(CONFIG_SOUND_BT878)	+= btaudio.o
 
-obj-$(CONFIG_SOUND_WM97XX)	+= ac97_plugin_wm97xx.o
+obj-$(CONFIG_SOUND_WM97XX)	+= ac97_plugin_wm97xx.o ac97_codec.o
+obj-$(CONFIG_SOUND_WM97XX_PXA)  += pxa-ac97-wm97xx.o pxa-audio.o pxa-ac97.o
+obj-$(CONFIG_SA1100_JORNADA56X)	+= sa1100-audio.o jornada56x-uda1341.o uda1341.o
 
 ifeq ($(CONFIG_MIDI_EMU10K1),y)
   obj-$(CONFIG_SOUND_EMU10K1)	+= sound.o

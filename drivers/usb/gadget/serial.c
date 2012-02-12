@@ -1356,6 +1356,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	struct usb_ep *ep;
 	struct gs_dev *dev;
 	int gcnum;
+	struct usb_endpoint_config ep_config[2];
 
 	/* Some controllers can't support CDC ACM:
 	 * - sh doesn't support multiple interfaces or configs;
@@ -1376,22 +1377,33 @@ static int __init gs_bind(struct usb_gadget *gadget)
 			__constant_cpu_to_le16(GS_VERSION_NUM|0x0099);
 	}
 
+	ep_config[0].config = GS_BULK_CONFIG_ID;
+	ep_config[0].interface = gs_bulk_interface_desc.bInterfaceNumber;
+	ep_config[0].altinterface = gs_bulk_interface_desc.bAlternateSetting;
+	ep_config[1].config = GS_ACM_CONFIG_ID;
+	ep_config[1].interface = gs_data_interface_desc.bInterfaceNumber;
+	ep_config[1].altinterface = gs_data_interface_desc.bAlternateSetting;
+
 	usb_ep_autoconfig_reset(gadget);
 
-	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_in_desc);
+	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_in_desc, &ep_config[0], 2);
 	if (!ep)
 		goto autoconf_fail;
 	EP_IN_NAME = ep->name;
 	ep->driver_data = ep;	/* claim the endpoint */
 
-	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_out_desc);
+	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_out_desc, &ep_config[0], 2);
 	if (!ep)
 		goto autoconf_fail;
 	EP_OUT_NAME = ep->name;
 	ep->driver_data = ep;	/* claim the endpoint */
 
 	if (use_acm) {
-		ep = usb_ep_autoconfig(gadget, &gs_fullspeed_notify_desc);
+		ep_config[0].config = GS_ACM_CONFIG_ID;
+		ep_config[0].interface = gs_control_interface_desc.bInterfaceNumber;
+		ep_config[0].altinterface = gs_control_interface_desc.bAlternateSetting;
+
+		ep = usb_ep_autoconfig(gadget, &gs_fullspeed_notify_desc, &ep_config[0], 1);
 		if (!ep) {
 			printk(KERN_ERR "gs_bind: cannot run ACM on %s\n", gadget->name);
 			goto autoconf_fail;
