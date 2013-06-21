@@ -66,7 +66,7 @@ extern ak4535_device_controls_t ak4535_device_controls;
 static char *id = NULL;	/* ID for this card */
 static int max_periods_allowed = 255; /* @@@@ check on this */
 
-MODULE_PARM(id, "s");
+module_param(id, charp,0);
 MODULE_PARM_DESC(id, "ID string for PXA + AK4535 soundcard.");
 
 

@@ -27,6 +27,7 @@
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
 #include <linux/device.h>
+#include "typedefs.h"
 
 /* forward declarations */
 #ifdef CONFIG_PCI

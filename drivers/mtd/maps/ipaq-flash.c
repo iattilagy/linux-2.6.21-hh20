@@ -284,7 +284,7 @@ int __init ipaq_mtd_init(void)
 	simple_map_init(&ipaq_map[1]);
 
 #if defined(CONFIG_SA1100_H3XXX) || defined(CONFIG_MACH_H3900)
-	if (machine_is_ipaq()) {
+	//if (machine_is_ipaq()) {
 		parts = h3xxx_partitions;
 		nb_parts = ARRAY_SIZE(h3xxx_partitions);
 		for(i=0; i<MAX_IPAQ_CS; i++) {
@@ -300,7 +300,7 @@ int __init ipaq_mtd_init(void)
 			h3xxx_partitions[1].size += IPAQ_ASSET_SIZE;
 			nb_parts--;
 		}
-	}
+	//}
 #endif
 #ifdef CONFIG_ARCH_H5400
 	if (machine_is_h5400()) {
@@ -338,7 +338,7 @@ int __init ipaq_mtd_init(void)
 #endif
 
 
-	if (machine_is_ipaq()) { /* for iPAQs only */
+	//if (machine_is_ipaq()) { /* for iPAQs only */
 		for(i=0; i<MAX_IPAQ_CS; i++) {
 			printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%x with CFI.\n", ipaq_map[i].bankwidth*8, (__u32)ipaq_map[i].virt);
 			my_sub_mtd[i] = do_map_probe("cfi_probe", &ipaq_map[i]);
@@ -397,7 +397,7 @@ int __init ipaq_mtd_init(void)
 			h3xxx_partitions_bank2[1].offset = my_sub_mtd[1]->size - IPAQ_ASSET_SIZE;
 		}
 #endif
-	}
+	//}
 	else {
 		/*
 		 * Now let's probe for the actual flash.  Do it here since

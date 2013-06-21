@@ -265,6 +265,16 @@ static inline void i2c_set_adapdata (struct i2c_adapter *dev, void *data)
 #define I2C_CLASS_SOUND		(1<<6)	/* sound devices */
 #define I2C_CLASS_ALL		(UINT_MAX) /* all of the above */
 
+
+/*flags for the driver struct: */
+#define I2C_DF_NOTIFY   0x01            /* notify on bus (de/a)ttaches  */
+#define I2C_DF_DUMMY    0x02            /* do not connect any clients */
+ 
+/*flags for the client struct: */
+#define I2C_CLIENT_ALLOW_USE            0x01    /* Client allows access */
+#define I2C_CLIENT_ALLOW_MULTIPLE_USE   0x02    /* Allow multiple access-locks */
+                                                 /* on an i2c_client */
+						 
 /* i2c_client_address_data is the struct for holding default client
  * addresses for a driver and for the parameters supplied on the
  * command line

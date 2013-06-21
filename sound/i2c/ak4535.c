@@ -554,10 +554,11 @@ int ak4535_command(struct i2c_client *clnt, unsigned int cmd, void *arg)
 }
 
 static struct i2c_driver ak4535 = {
-	.owner          = THIS_MODULE,
-	.name		= AK4535_NAME,
-	.id		= I2C_DRIVERID_AK4535,
-	.flags		= I2C_DF_NOTIFY,
+	
+	.driver = {
+		.name = "AK4535 I2C",
+		.owner = THIS_MODULE,
+	},
 	.attach_adapter	= ak4535_attach_adapter,
 	.detach_client	= ak4535_detach_client,
 	.command        = ak4535_command

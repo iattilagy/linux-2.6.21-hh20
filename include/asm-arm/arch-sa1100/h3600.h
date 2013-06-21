@@ -27,7 +27,8 @@
 
 #include <linux/interrupt.h>
 
-#include <asm/arch/ipaqsa.h>
+//#include <asm/arch/ipaqsa.h> ???
+#include <asm/arch/ipaq.h>
 
 /* 
  * GPIO lines that are common across ALL SA1100 iPAQ models are in "asm/arch-sa1100/ipaqsa.h" 

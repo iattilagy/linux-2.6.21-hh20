@@ -89,7 +89,7 @@ config SND_SA11XX_UDA1341
 
 config SND_H5XXX_AK4535
 	tristate "PXA2xx AK4535 driver (H5xxx)"
-	depends on ARCH_H5400 && SND && I2C
+	depends on ARCH_H5400 && SND && I2C && IPAQ_H5400_AUDIO
 	help
 	  Say Y or M if you have a Compaq iPaq H5xxx handheld computer and want
 	  to use its AKM AK4535 audio chip.
